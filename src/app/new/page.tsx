@@ -264,28 +264,20 @@ function NewPostContent() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">{t.writingIn}</label>
             <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setWritingLang('ja')}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
-                  writingLang === 'ja'
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                }`}
-              >
-                🇯🇵 日本語で作成
-              </button>
-              <button
-                type="button"
-                onClick={() => setWritingLang('ko')}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
-                  writingLang === 'ko'
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                }`}
-              >
-                🇰🇷 한국어로 작성
-              </button>
+              {(writingLang === 'ko' ? (['ko', 'ja'] as const) : (['ja', 'ko'] as const)).map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => setWritingLang(l)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
+                    writingLang === l
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  {l === 'ko' ? '🇰🇷 한국어로 작성' : '🇯🇵 日本語で作成'}
+                </button>
+              ))}
             </div>
             <p className="text-xs text-gray-400 mt-1.5">
               {writingLang === 'ko'
