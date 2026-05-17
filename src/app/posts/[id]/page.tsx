@@ -488,9 +488,6 @@ export default function PostDetailPage() {
                     {lang === 'ko' ? '수정됨' : '編集済み'}
                   </span>
                 )}
-                <span className="text-xs">
-                  {post.original_lang === 'ko' ? '🇰🇷 한국어 원문' : '🇯🇵 日本語原文'}
-                </span>
                 <div className="ml-auto flex items-center gap-2 flex-wrap">
                   <button
                     onClick={() => { setReportTarget({ type: 'post', id }); setReportReason(''); setReportSuccess(false) }}
@@ -524,18 +521,22 @@ export default function PostDetailPage() {
                       </button>
                     </div>
                   )}
-                  <button
-                    onClick={startEditPost}
-                    className="text-xs text-blue-400 hover:text-blue-600 hover:underline"
-                  >
-                    {lang === 'ko' ? '수정' : '編集'}
-                  </button>
-                  <button
-                    onClick={() => openDeleteModal({ type: 'post' })}
-                    className="text-xs text-red-400 hover:text-red-600 hover:underline"
-                  >
-                    {lang === 'ko' ? '삭제' : '削除'}
-                  </button>
+                  {user && isOwner(post) && (
+                    <>
+                      <button
+                        onClick={startEditPost}
+                        className="text-xs text-blue-400 hover:text-blue-600 hover:underline"
+                      >
+                        {lang === 'ko' ? '수정' : '編集'}
+                      </button>
+                      <button
+                        onClick={() => openDeleteModal({ type: 'post' })}
+                        className="text-xs text-red-400 hover:text-red-600 hover:underline"
+                      >
+                        {lang === 'ko' ? '삭제' : '削除'}
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -704,18 +705,22 @@ export default function PostDetailPage() {
                               </button>
                             </div>
                           )}
-                          <button
-                            onClick={() => startEditComment(node)}
-                            className="text-xs text-blue-400 hover:text-blue-600 hover:underline"
-                          >
-                            {lang === 'ko' ? '수정' : '編集'}
-                          </button>
-                          <button
-                            onClick={() => openDeleteModal({ type: 'comment', commentId: node.id })}
-                            className="text-xs text-red-400 hover:text-red-600 hover:underline"
-                          >
-                            {lang === 'ko' ? '삭제' : '削除'}
-                          </button>
+                          {user && isOwner(node) && (
+                            <>
+                              <button
+                                onClick={() => startEditComment(node)}
+                                className="text-xs text-blue-400 hover:text-blue-600 hover:underline"
+                              >
+                                {lang === 'ko' ? '수정' : '編集'}
+                              </button>
+                              <button
+                                onClick={() => openDeleteModal({ type: 'comment', commentId: node.id })}
+                                className="text-xs text-red-400 hover:text-red-600 hover:underline"
+                              >
+                                {lang === 'ko' ? '삭제' : '削除'}
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
 

@@ -354,9 +354,6 @@ export default function HomePage() {
                         }`}>
                           {getCategoryLabel(post.category, lang)}
                         </span>
-                        <span className="text-xs text-gray-400">
-                          {post.original_lang === 'ko' ? '🇰🇷 원문' : '🇯🇵 原文'}
-                        </span>
                         {isHidden && (
                           <span className="text-xs font-bold text-orange-500 border border-orange-300 bg-orange-50 px-1.5 py-0.5 rounded">
                             숨김
