@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-browser'
@@ -40,6 +40,14 @@ function formatSize(bytes: number) {
 }
 
 export default function NewPostPage() {
+  return (
+    <Suspense>
+      <NewPostContent />
+    </Suspense>
+  )
+}
+
+function NewPostContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [lang, setLang] = useState<'ko' | 'ja'>('ko')        // UI 표시 언어
