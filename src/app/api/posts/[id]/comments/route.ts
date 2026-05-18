@@ -76,11 +76,14 @@ async function sendNotifications(
   // 게시글 정보 조회
   const { data: post } = await supabase
     .from('posts')
-    .select('user_id, title_ko, title_ja, original_lang')
+    .select('user_id, title_ko, title_ja, original_lang, notify_comment')
     .eq('id', postId)
     .single()
 
   if (!post) return
+
+  // 글 작성자가 알림 OFF 설정한 경우 전체 스킵
+  if (!post.notify_comment) return
 
   // ── 글 작성자 알림 ──────────────────────────────────────────
   const postAuthorId = post.user_id as string | null

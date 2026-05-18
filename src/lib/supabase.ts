@@ -29,6 +29,7 @@ export type Post = {
   attachments: Attachment[] | null
   status: PostStatus
   tags: string[] | null
+  notify_comment: boolean
 }
 
 export type Profile = {

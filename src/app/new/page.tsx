@@ -58,6 +58,7 @@ function NewPostContent() {
     author_name: '',
     category: 'AI·로봇',
   })
+  const [notifyComment, setNotifyComment] = useState(true)
   const [tags, setTags] = useState<string[]>([])
   const [tagInput, setTagInput] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -181,7 +182,7 @@ function NewPostContent() {
       const res = await fetch('/api/posts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, original_lang: writingLang, attachments, tags }),
+        body: JSON.stringify({ ...form, original_lang: writingLang, attachments, tags, notify_comment: notifyComment }),
       })
 
       if (!res.ok) {
@@ -457,6 +458,21 @@ function NewPostContent() {
               </ul>
             )}
           </div>
+
+          {/* 댓글 알림 설정 */}
+          <label className="flex items-center gap-2.5 cursor-pointer select-none group">
+            <input
+              type="checkbox"
+              checked={notifyComment}
+              onChange={(e) => setNotifyComment(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-blue-600 accent-blue-600 cursor-pointer"
+            />
+            <span className="text-sm text-gray-600 group-hover:text-gray-900">
+              {lang === 'ko'
+                ? '댓글이 달리면 이메일로 알림 받기'
+                : 'コメントが届いたらメールで通知する'}
+            </span>
+          </label>
 
           {error && (
             <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
