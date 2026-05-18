@@ -93,6 +93,9 @@ export default function PostDetailPage() {
 
   const [editingComment, setEditingComment] = useState<string | null>(null)
   const [editCommentForm, setEditCommentForm] = useState({ author_name: '', content: '' })
+  const [editCommentWritingLang, setEditCommentWritingLang] = useState<'ko' | 'ja'>('ko')
+  const [editCommentNotify, setEditCommentNotify] = useState(true)
+  const [editCommentNotifyEmail, setEditCommentNotifyEmail] = useState('')
   const [editCommentSubmitting, setEditCommentSubmitting] = useState(false)
   const [editCommentError, setEditCommentError] = useState('')
 
@@ -223,6 +226,9 @@ export default function PostDetailPage() {
 
   function startEditComment(node: CommentNode) {
     const content = node.original_lang === 'ko' ? node.content_ko : node.content_ja
+    setEditCommentWritingLang(node.original_lang)
+    setEditCommentNotify(node.notify_reply ?? true)
+    setEditCommentNotifyEmail(node.notify_email || user?.email || '')
     setEditCommentForm({
       author_name: user ? (user.user_metadata?.full_name || user.email || '') : '',
       content,
@@ -239,7 +245,12 @@ export default function PostDetailPage() {
       const res = await fetch(`/api/posts/${id}/comments/${commentId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editCommentForm),
+        body: JSON.stringify({
+          ...editCommentForm,
+          original_lang: editCommentWritingLang,
+          notify_reply: editCommentNotify,
+          notify_email: editCommentNotify ? editCommentNotifyEmail.trim() : null,
+        }),
       })
       if (!res.ok) throw new Error((await res.json()).error)
       const updated = await res.json()
@@ -875,19 +886,46 @@ export default function PostDetailPage() {
                       </div>
 
                       {editingComment === node.id ? (
-                        <form onSubmit={(e) => handleEditCommentSubmit(e, node.id)} className="space-y-2 mt-1">
+                        <form onSubmit={(e) => handleEditCommentSubmit(e, node.id)} className="space-y-2.5 mt-1">
+                          {/* 작성 언어 선택 */}
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">
-                              {node.original_lang === 'ko' ? '🇰🇷 한국어 원문' : '🇯🇵 日本語原文'}
-                            </label>
-                            <textarea
-                              required
-                              rows={3}
-                              value={editCommentForm.content}
-                              onChange={(e) => setEditCommentForm({ ...editCommentForm, content: e.target.value })}
-                              className="w-full border border-blue-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
-                            />
+                            <p className="text-xs text-gray-400 mb-1">
+                              {lang === 'ko' ? '작성 언어' : '投稿言語'}
+                            </p>
+                            <div className="flex gap-1.5">
+                              {(['ko', 'ja'] as const).map((l) => (
+                                <button
+                                  key={l}
+                                  type="button"
+                                  onClick={() => setEditCommentWritingLang(l)}
+                                  className={`flex-1 py-1 rounded-lg border text-xs font-medium transition-colors ${
+                                    editCommentWritingLang === l
+                                      ? 'bg-blue-600 text-white border-blue-600'
+                                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                                  }`}
+                                >
+                                  {l === 'ko' ? '한국어로 작성' : '日本語で作成'}
+                                </button>
+                              ))}
+                            </div>
+                            <p className="text-xs text-blue-400 mt-1">
+                              🤖 {editCommentWritingLang === 'ko'
+                                ? '한국어 원문 → 일본어 자동 번역'
+                                : '日本語原文 → 韓国語に自動翻訳'}
+                            </p>
                           </div>
+
+                          {/* 내용 */}
+                          <textarea
+                            required
+                            rows={3}
+                            value={editCommentForm.content}
+                            onChange={(e) => setEditCommentForm({ ...editCommentForm, content: e.target.value })}
+                            placeholder={editCommentWritingLang === 'ko' ? '댓글을 입력하세요' : 'コメントを入力してください'}
+                            className="w-full border border-blue-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                          />
+
+                          {/* 비로그인 시 작성자명 */}
                           {!user && (
                             <input
                               type="text"
@@ -898,9 +936,36 @@ export default function PostDetailPage() {
                               className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                             />
                           )}
-                          <p className="text-xs text-blue-400">
-                            🤖 {lang === 'ko' ? '저장 시 자동 번역됩니다.' : '保存時に自動翻訳されます。'}
-                          </p>
+
+                          {/* 답글 알림 설정 */}
+                          <div className="space-y-1.5">
+                            <label className="flex items-center gap-2 cursor-pointer select-none group">
+                              <input
+                                type="checkbox"
+                                checked={editCommentNotify}
+                                onChange={(e) => setEditCommentNotify(e.target.checked)}
+                                className="w-3.5 h-3.5 rounded border-gray-300 accent-blue-600 cursor-pointer"
+                              />
+                              <span className="text-xs text-gray-600 group-hover:text-gray-900">
+                                {lang === 'ko' ? '답글이 달리면 이메일로 알림 받기' : '返信が届いたらメールで通知する'}
+                              </span>
+                            </label>
+                            {editCommentNotify && (
+                              <div className="flex items-center gap-2 pl-5">
+                                <label className="text-xs text-gray-400 shrink-0">
+                                  {lang === 'ko' ? '알림 이메일' : '通知先メール'}
+                                </label>
+                                <input
+                                  type="email"
+                                  value={editCommentNotifyEmail}
+                                  onChange={(e) => setEditCommentNotifyEmail(e.target.value)}
+                                  placeholder={lang === 'ko' ? '이메일 주소' : 'メールアドレス'}
+                                  className="flex-1 border border-blue-100 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                />
+                              </div>
+                            )}
+                          </div>
+
                           {editCommentError && (
                             <p className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded">{editCommentError}</p>
                           )}

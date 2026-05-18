@@ -8,7 +8,7 @@ type Params = Promise<{ id: string; commentId: string }>
 export async function PUT(req: NextRequest, { params }: { params: Params }) {
   const { commentId } = await params
   const body = await req.json()
-  const { content, author_name } = body
+  const { content, author_name, original_lang, notify_reply, notify_email } = body
 
   if (!content) return NextResponse.json({ error: '내용은 필수입니다.' }, { status: 400 })
 
@@ -27,16 +27,26 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
     return NextResponse.json({ error: '작성자명이 일치하지 않습니다.' }, { status: 403 })
   }
 
-  const targetLang = comment.original_lang === 'ko' ? 'ja' : 'ko'
-  const translated = await translateText(content, comment.original_lang, targetLang)
+  const sourceLang: 'ko' | 'ja' = (original_lang === 'ko' || original_lang === 'ja')
+    ? original_lang
+    : comment.original_lang
+
+  const targetLang = sourceLang === 'ko' ? 'ja' : 'ko'
+  const translated = await translateText(content, sourceLang, targetLang)
   const updateData =
-    comment.original_lang === 'ko'
+    sourceLang === 'ko'
       ? { content_ko: content, content_ja: translated }
       : { content_ja: content, content_ko: translated }
 
   const { data, error } = await supabase
     .from('comments')
-    .update({ ...updateData, updated_at: new Date().toISOString() })
+    .update({
+      ...updateData,
+      original_lang: sourceLang,
+      notify_reply: notify_reply !== false,
+      notify_email: notify_reply !== false ? (notify_email || null) : null,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', commentId)
     .select()
     .single()
