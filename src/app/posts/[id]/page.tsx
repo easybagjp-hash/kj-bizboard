@@ -809,7 +809,7 @@ export default function PostDetailPage() {
                                     : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
                                 }`}
                               >
-                                {l === 'ko' ? '🇰🇷 한국어로' : '🇯🇵 日本語で'}
+                                {l === 'ko' ? '한국어로' : '日本語で'}
                               </button>
                             ))}
                           </div>
@@ -905,7 +905,7 @@ export default function PostDetailPage() {
                         : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
                     }`}
                   >
-                    {l === 'ko' ? '🇰🇷 한국어로 작성' : '🇯🇵 日本語で作成'}
+                    {l === 'ko' ? '한국어로 작성' : '日本語で作成'}
                   </button>
                 ))}
               </div>
