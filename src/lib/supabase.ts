@@ -30,6 +30,7 @@ export type Post = {
   status: PostStatus
   tags: string[] | null
   notify_comment: boolean
+  notify_email: string | null
 }
 
 export type Profile = {

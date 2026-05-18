@@ -59,6 +59,7 @@ function NewPostContent() {
     category: 'AI·로봇',
   })
   const [notifyComment, setNotifyComment] = useState(true)
+  const [notifyEmail, setNotifyEmail] = useState('')
   const [tags, setTags] = useState<string[]>([])
   const [tagInput, setTagInput] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -85,6 +86,7 @@ function NewPostContent() {
         setUser(data.user)
         const name = data.user.user_metadata?.full_name || data.user.email || ''
         setForm((f) => ({ ...f, author_name: name }))
+        setNotifyEmail(data.user.email ?? '')
       }
       setAuthLoading(false)
     })
@@ -182,7 +184,14 @@ function NewPostContent() {
       const res = await fetch('/api/posts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, original_lang: writingLang, attachments, tags, notify_comment: notifyComment }),
+        body: JSON.stringify({
+        ...form,
+        original_lang: writingLang,
+        attachments,
+        tags,
+        notify_comment: notifyComment,
+        notify_email: notifyComment ? notifyEmail.trim() : null,
+      }),
       })
 
       if (!res.ok) {
@@ -460,19 +469,35 @@ function NewPostContent() {
           </div>
 
           {/* 댓글 알림 설정 */}
-          <label className="flex items-center gap-2.5 cursor-pointer select-none group">
-            <input
-              type="checkbox"
-              checked={notifyComment}
-              onChange={(e) => setNotifyComment(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-300 text-blue-600 accent-blue-600 cursor-pointer"
-            />
-            <span className="text-sm text-gray-600 group-hover:text-gray-900">
-              {lang === 'ko'
-                ? '댓글이 달리면 이메일로 알림 받기'
-                : 'コメントが届いたらメールで通知する'}
-            </span>
-          </label>
+          <div className="space-y-2.5">
+            <label className="flex items-center gap-2.5 cursor-pointer select-none group">
+              <input
+                type="checkbox"
+                checked={notifyComment}
+                onChange={(e) => setNotifyComment(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 accent-blue-600 cursor-pointer"
+              />
+              <span className="text-sm text-gray-700 group-hover:text-gray-900">
+                {lang === 'ko'
+                  ? '댓글이 달리면 이메일로 알림 받기'
+                  : 'コメントが届いたらメールで通知する'}
+              </span>
+            </label>
+            {notifyComment && (
+              <div className="flex items-center gap-2 pl-6">
+                <label className="text-xs text-gray-500 shrink-0">
+                  {lang === 'ko' ? '알림 받을 이메일' : '通知先メール'}
+                </label>
+                <input
+                  type="email"
+                  value={notifyEmail}
+                  onChange={(e) => setNotifyEmail(e.target.value)}
+                  placeholder={lang === 'ko' ? '이메일 주소' : 'メールアドレス'}
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            )}
+          </div>
 
           {error && (
             <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>

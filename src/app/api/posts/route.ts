@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { title, content, original_lang, author_name, category, tags, notify_comment } = body
+  const { title, content, original_lang, author_name, category, tags, notify_comment, notify_email } = body
 
   if (!title || !content || !original_lang || !author_name) {
     return NextResponse.json({ error: '필수 항목이 누락되었습니다.' }, { status: 400 })
@@ -50,7 +50,17 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await supabase
     .from('posts')
-    .insert([{ ...postData, original_lang, author_name, category: category || null, user_id: user?.id ?? null, attachments, tags: tags ?? [], notify_comment: notify_comment !== false }])
+    .insert([{
+      ...postData,
+      original_lang,
+      author_name,
+      category: category || null,
+      user_id: user?.id ?? null,
+      attachments,
+      tags: tags ?? [],
+      notify_comment: notify_comment !== false,
+      notify_email: notify_comment !== false ? (notify_email || null) : null,
+    }])
     .select()
     .single()
 
