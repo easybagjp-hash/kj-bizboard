@@ -1,5 +1,5 @@
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.aicafe.community'
-const FROM = process.env.EMAIL_FROM || 'AI✦Cafe <onboarding@resend.dev>'
+const FROM = process.env.EMAIL_FROM || 'AI✦Cafe <noreply@send.aicafe.community>'
 
 export async function sendCommentNotification({
   to,
@@ -53,20 +53,21 @@ export async function sendCommentNotification({
           <p style="font-size:12px;color:#9ca3af">通知をオフにするには <a href="${SITE_URL}/profile" style="color:#6b7280;text-decoration:underline">プロフィール設定</a> から変更できます。</p>
         </div>`
 
+  console.log('[Email] sendCommentNotification — from:', FROM, '| to:', to, '| subject:', subject)
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: FROM,
-        to,
-        subject,
-        html,
-      }),
+      body: JSON.stringify({ from: FROM, to, subject, html }),
     })
-    if (!res.ok) console.warn('[Notify] Email send failed:', await res.text())
+    const resBody = await res.text()
+    if (!res.ok) {
+      console.error('[Email] Resend API 오류 status:', res.status, '| body:', resBody)
+    } else {
+      console.log('[Email] Resend 발송 성공:', resBody)
+    }
   } catch (e) {
-    console.warn('[Notify] Email error:', e)
+    console.error('[Email] fetch 오류:', e)
   }
 }
 
@@ -124,15 +125,21 @@ export async function sendReplyNotification({
           <p style="font-size:12px;color:#9ca3af">通知をオフにするにはコメント投稿時に通知設定をオフにしてください。</p>
         </div>`
 
+  console.log('[Email] sendReplyNotification — from:', FROM, '| to:', to, '| subject:', subject)
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ from: FROM, to, subject, html }),
     })
-    if (!res.ok) console.warn('[Notify] Reply email send failed:', await res.text())
+    const resBody = await res.text()
+    if (!res.ok) {
+      console.error('[Email] Resend API 오류 status:', res.status, '| body:', resBody)
+    } else {
+      console.log('[Email] Resend 발송 성공:', resBody)
+    }
   } catch (e) {
-    console.warn('[Notify] Reply email error:', e)
+    console.error('[Email] fetch 오류:', e)
   }
 }
 

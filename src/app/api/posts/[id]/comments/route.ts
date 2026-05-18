@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { translateText } from '@/lib/translation'
 import { createClient } from '@/lib/supabase-server'
@@ -67,9 +67,15 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // 알림 발송 (비동기, 실패해도 응답에 영향 없음)
-  sendNotifications(id, data.id, user?.id ?? null, parent_id ?? null, content, author_name)
-    .catch((e) => console.warn('[Notify] notification error:', e))
+  // after()로 응답 후 실행 보장 — Vercel 서버리스에서 fire-and-forget이 조기 종료되는 문제 해결
+  const commenterId = user?.id ?? null
+  after(async () => {
+    try {
+      await sendNotifications(id, data.id, commenterId, parent_id ?? null, content, author_name)
+    } catch (e) {
+      console.error('[Notify] sendNotifications 최상위 오류:', e)
+    }
+  })
 
   return NextResponse.json(data, { status: 201 })
 }
@@ -82,23 +88,48 @@ async function sendNotifications(
   commentContent: string,
   commenterName: string,
 ) {
+  console.log('[Notify] sendNotifications 시작 — postId:', postId, '| commentId:', commentId, '| parentId:', parentId)
+
+  // 환경변수 확인
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) {
+    console.error('[Notify] RESEND_API_KEY 환경변수가 없습니다. Vercel 환경변수 설정 필요.')
+    return
+  }
+  console.log('[Notify] RESEND_API_KEY 확인 완료 (앞 4자리):', apiKey.slice(0, 4) + '****')
+
   // 게시글 정보 조회
-  const { data: post } = await supabase
+  const { data: post, error: postError } = await supabase
     .from('posts')
     .select('user_id, title_ko, title_ja, original_lang, notify_comment, notify_email')
     .eq('id', postId)
     .single()
 
-  if (!post) return
+  if (postError) {
+    console.error('[Notify] 게시글 조회 오류:', postError.message)
+    return
+  }
+  if (!post) {
+    console.warn('[Notify] 게시글을 찾을 수 없음 — postId:', postId)
+    return
+  }
+
+  console.log('[Notify] 게시글 조회 완료 — notify_comment:', post.notify_comment, '| notify_email:', post.notify_email)
 
   const lang = post.original_lang as 'ko' | 'ja'
   const postTitle = lang === 'ko' ? post.title_ko : post.title_ja
 
   // 1) 글 작성자 알림 (댓글/대댓글 모두)
-  if (post.notify_comment && post.notify_email) {
-    // 본인 댓글이면 스킵
-    const isSelf = post.user_id && post.user_id === commenterId
-    if (!isSelf) {
+  if (!post.notify_comment) {
+    console.log('[Notify] 글 작성자 알림 OFF — 스킵')
+  } else if (!post.notify_email) {
+    console.warn('[Notify] 글 작성자 notify_email 없음 — 스킵')
+  } else {
+    const isSelf = !!(post.user_id && post.user_id === commenterId)
+    if (isSelf) {
+      console.log('[Notify] 본인 댓글 — 글 작성자 알림 스킵')
+    } else {
+      console.log('[Notify] 글 작성자에게 댓글 알림 발송 시도 →', post.notify_email)
       await sendCommentNotification({
         to: post.notify_email,
         lang,
@@ -106,30 +137,56 @@ async function sendNotifications(
         commentContent,
         postId,
       })
+      console.log('[Notify] 글 작성자 댓글 알림 발송 완료')
     }
   }
 
   // 2) 부모 댓글 작성자 알림 (대댓글인 경우)
-  if (parentId) {
-    const { data: parentComment } = await supabase
-      .from('comments')
-      .select('user_id, notify_reply, notify_email')
-      .eq('id', parentId)
-      .single()
-
-    if (parentComment && parentComment.notify_reply && parentComment.notify_email) {
-      // 부모 댓글 작성자가 본인이면 스킵
-      const isSelf = parentComment.user_id && parentComment.user_id === commenterId
-      if (!isSelf) {
-        await sendReplyNotification({
-          to: parentComment.notify_email,
-          lang,
-          postTitle,
-          replyContent: commentContent,
-          replierName: commenterName,
-          postId,
-        })
-      }
-    }
+  if (!parentId) {
+    console.log('[Notify] 대댓글 아님 — 부모 알림 없음')
+    return
   }
+
+  const { data: parentComment, error: parentError } = await supabase
+    .from('comments')
+    .select('user_id, notify_reply, notify_email')
+    .eq('id', parentId)
+    .single()
+
+  if (parentError) {
+    console.error('[Notify] 부모 댓글 조회 오류:', parentError.message)
+    return
+  }
+  if (!parentComment) {
+    console.warn('[Notify] 부모 댓글을 찾을 수 없음 — parentId:', parentId)
+    return
+  }
+
+  console.log('[Notify] 부모 댓글 — notify_reply:', parentComment.notify_reply, '| notify_email:', parentComment.notify_email)
+
+  if (!parentComment.notify_reply) {
+    console.log('[Notify] 부모 댓글 작성자 알림 OFF — 스킵')
+    return
+  }
+  if (!parentComment.notify_email) {
+    console.warn('[Notify] 부모 댓글 notify_email 없음 — 스킵')
+    return
+  }
+
+  const isSelf = !!(parentComment.user_id && parentComment.user_id === commenterId)
+  if (isSelf) {
+    console.log('[Notify] 본인 답글 — 부모 댓글 작성자 알림 스킵')
+    return
+  }
+
+  console.log('[Notify] 부모 댓글 작성자에게 답글 알림 발송 시도 →', parentComment.notify_email)
+  await sendReplyNotification({
+    to: parentComment.notify_email,
+    lang,
+    postTitle,
+    replyContent: commentContent,
+    replierName: commenterName,
+    postId,
+  })
+  console.log('[Notify] 부모 댓글 작성자 답글 알림 발송 완료')
 }
