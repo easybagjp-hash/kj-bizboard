@@ -33,6 +33,10 @@ export default function Footer({ lang }: { lang: 'ko' | 'ja' }) {
             <Link href="/privacy" className="hover:text-gray-600">
               {lang === 'ko' ? '개인정보처리방침' : 'プライバシーポリシー'}
             </Link>
+            <span className="text-gray-200">|</span>
+            <Link href="/profile" className="hover:text-gray-600">
+              {lang === 'ko' ? '알림 설정' : '通知設定'}
+            </Link>
           </div>
         </div>
         <p className="mt-4 text-gray-300">

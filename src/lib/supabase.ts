@@ -31,6 +31,13 @@ export type Post = {
   tags: string[] | null
 }
 
+export type Profile = {
+  id: string
+  email: string
+  notify_comment: boolean
+  created_at: string
+}
+
 export type Comment = {
   id: string
   post_id: string
