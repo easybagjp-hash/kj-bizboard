@@ -78,6 +78,12 @@ export default function PostDetailPage() {
 
   const [editingPost, setEditingPost] = useState(false)
   const [editPostForm, setEditPostForm] = useState({ author_name: '', title: '', content: '' })
+  const [editPostWritingLang, setEditPostWritingLang] = useState<'ko' | 'ja'>('ko')
+  const [editPostCategory, setEditPostCategory] = useState<string>('AI·로봇')
+  const [editPostTags, setEditPostTags] = useState<string[]>([])
+  const [editPostTagInput, setEditPostTagInput] = useState('')
+  const [editPostNotifyComment, setEditPostNotifyComment] = useState(true)
+  const [editPostNotifyEmail, setEditPostNotifyEmail] = useState('')
   const [editPostSubmitting, setEditPostSubmitting] = useState(false)
   const [editPostError, setEditPostError] = useState('')
 
@@ -166,6 +172,12 @@ export default function PostDetailPage() {
     if (!post) return
     const title = post.original_lang === 'ko' ? post.title_ko : post.title_ja
     const content = post.original_lang === 'ko' ? post.content_ko : post.content_ja
+    setEditPostWritingLang(post.original_lang)
+    setEditPostCategory(post.category || 'AI·로봇')
+    setEditPostTags(post.tags || [])
+    setEditPostTagInput('')
+    setEditPostNotifyComment(post.notify_comment ?? true)
+    setEditPostNotifyEmail(post.notify_email || user?.email || '')
     setEditPostForm({
       author_name: user ? (user.user_metadata?.full_name || user.email || '') : '',
       title,
@@ -183,7 +195,14 @@ export default function PostDetailPage() {
       const res = await fetch(`/api/posts/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editPostForm),
+        body: JSON.stringify({
+          ...editPostForm,
+          original_lang: editPostWritingLang,
+          category: editPostCategory,
+          tags: editPostTags,
+          notify_comment: editPostNotifyComment,
+          notify_email: editPostNotifyComment ? editPostNotifyEmail.trim() : null,
+        }),
       })
       if (!res.ok) throw new Error((await res.json()).error)
       const updated = await res.json()
@@ -409,46 +428,160 @@ export default function PostDetailPage() {
           </div>
 
           {editingPost ? (
-            <form onSubmit={handleEditPostSubmit} className="space-y-4 mb-6">
+            <form onSubmit={handleEditPostSubmit} className="space-y-5 mb-6 bg-gray-50 rounded-xl p-5 border border-gray-200">
+
+              {/* 작성 언어 */}
               <div>
-                <label className="block text-xs text-gray-500 mb-1">
-                  {post.original_lang === 'ko' ? '🇰🇷 제목 (한국어 원문)' : '🇯🇵 タイトル（日本語原文）'}
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {lang === 'ko' ? '작성 언어' : '投稿言語'}
+                </label>
+                <div className="flex gap-2">
+                  {(['ko', 'ja'] as const).map((l) => (
+                    <button
+                      key={l}
+                      type="button"
+                      onClick={() => setEditPostWritingLang(l)}
+                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                        editPostWritingLang === l
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      {l === 'ko' ? '한국어로 작성' : '日本語で作成'}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-1.5">
+                  {editPostWritingLang === 'ko'
+                    ? '한국어로 작성 → 일본어 자동 번역 저장'
+                    : '日本語で作成 → 韓国語に自動翻訳して保存'}
+                </p>
+              </div>
+
+              {/* 카테고리 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {lang === 'ko' ? '카테고리' : 'カテゴリ'}
+                </label>
+                <div className="flex gap-2 flex-wrap">
+                  {CATEGORIES.map((cat) => (
+                    <button
+                      key={cat.value}
+                      type="button"
+                      onClick={() => setEditPostCategory(cat.value)}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                        editPostCategory === cat.value
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      {cat[lang]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 태그 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {lang === 'ko' ? '태그' : 'タグ'}
+                  <span className="text-gray-400 font-normal ml-1 text-xs">
+                    {lang === 'ko' ? '(선택 · 최대 5개 · 엔터로 추가)' : '(任意 · 最大5個 · Enterで追加)'}
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  value={editPostTagInput}
+                  onChange={(e) => setEditPostTagInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      const trimmed = editPostTagInput.trim()
+                      if (trimmed && !editPostTags.includes(trimmed) && editPostTags.length < 5) {
+                        setEditPostTags([...editPostTags, trimmed])
+                      }
+                      setEditPostTagInput('')
+                    }
+                  }}
+                  placeholder={lang === 'ko' ? '태그 입력 후 엔터' : 'タグを入力してEnter'}
+                  disabled={editPostTags.length >= 5}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
+                />
+                {editPostTags.length > 0 && (
+                  <div className="flex gap-2 flex-wrap mt-2">
+                    {editPostTags.map((tag, i) => (
+                      <span key={i} className="flex items-center gap-1 bg-blue-50 text-blue-600 text-xs px-2.5 py-1 rounded-full">
+                        #{tag}
+                        <button
+                          type="button"
+                          onClick={() => setEditPostTags(editPostTags.filter((_, idx) => idx !== i))}
+                          className="text-blue-400 hover:text-blue-700 leading-none"
+                        >×</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 제목 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {lang === 'ko' ? '제목' : 'タイトル'}
                 </label>
                 <input
                   type="text"
                   required
                   value={editPostForm.title}
                   onChange={(e) => setEditPostForm({ ...editPostForm, title: e.target.value })}
-                  className="w-full text-xl font-bold border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder={lang === 'ko' ? '제목을 입력하세요' : 'タイトルを入力してください'}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+
+              {/* 내용 */}
               <div>
-                <label className="block text-xs text-gray-500 mb-1">
-                  {post.original_lang === 'ko' ? '🇰🇷 내용 (한국어 원문)' : '🇯🇵 内容（日本語原文）'}
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {lang === 'ko' ? '내용' : '内容'}
                 </label>
                 <textarea
                   required
                   rows={10}
                   value={editPostForm.content}
                   onChange={(e) => setEditPostForm({ ...editPostForm, content: e.target.value })}
+                  placeholder={lang === 'ko' ? '내용을 입력하세요' : '内容を入力してください'}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 />
               </div>
-              {!user && (
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">
-                    {lang === 'ko' ? '작성자명 확인' : '投稿者名の確認'}
-                  </label>
+
+              {/* 댓글 알림 설정 */}
+              <div className="space-y-2.5">
+                <label className="flex items-center gap-2.5 cursor-pointer select-none group">
                   <input
-                    type="text"
-                    required
-                    value={editPostForm.author_name}
-                    onChange={(e) => setEditPostForm({ ...editPostForm, author_name: e.target.value })}
-                    placeholder={lang === 'ko' ? '작성 시 입력한 이름을 입력하세요' : '投稿時に入力したお名前を入力してください'}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    type="checkbox"
+                    checked={editPostNotifyComment}
+                    onChange={(e) => setEditPostNotifyComment(e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-300 accent-blue-600 cursor-pointer"
                   />
-                </div>
-              )}
+                  <span className="text-sm text-gray-700 group-hover:text-gray-900">
+                    {lang === 'ko' ? '댓글이 달리면 이메일로 알림 받기' : 'コメントが届いたらメールで通知する'}
+                  </span>
+                </label>
+                {editPostNotifyComment && (
+                  <div className="flex items-center gap-2 pl-6">
+                    <label className="text-xs text-gray-500 shrink-0">
+                      {lang === 'ko' ? '알림 받을 이메일' : '通知先メール'}
+                    </label>
+                    <input
+                      type="email"
+                      value={editPostNotifyEmail}
+                      onChange={(e) => setEditPostNotifyEmail(e.target.value)}
+                      placeholder={lang === 'ko' ? '이메일 주소' : 'メールアドレス'}
+                      className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                )}
+              </div>
+
               <p className="text-xs text-blue-500">
                 🤖 {lang === 'ko' ? '저장 시 반대 언어로 자동 번역됩니다.' : '保存時に自動翻訳されます。'}
               </p>

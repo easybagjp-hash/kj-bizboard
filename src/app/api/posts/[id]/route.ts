@@ -25,7 +25,7 @@ export async function GET(_req: NextRequest, { params }: { params: Params }) {
 export async function PUT(req: NextRequest, { params }: { params: Params }) {
   const { id } = await params
   const body = await req.json()
-  const { title, content, author_name } = body
+  const { title, content, author_name, original_lang, category, tags, notify_comment, notify_email } = body
 
   if (!title || !content) {
     return NextResponse.json({ error: '제목과 내용은 필수입니다.' }, { status: 400 })
@@ -46,15 +46,27 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
     return NextResponse.json({ error: '작성자명이 일치하지 않습니다.' }, { status: 403 })
   }
 
-  const translated = await translatePost(title, content, post.original_lang)
+  const sourceLang: 'ko' | 'ja' = (original_lang === 'ko' || original_lang === 'ja')
+    ? original_lang
+    : post.original_lang
+
+  const translated = await translatePost(title, content, sourceLang)
   const updateData =
-    post.original_lang === 'ko'
+    sourceLang === 'ko'
       ? { title_ko: title, content_ko: content, title_ja: translated.title, content_ja: translated.content }
       : { title_ja: title, content_ja: content, title_ko: translated.title, content_ko: translated.content }
 
   const { data, error } = await supabase
     .from('posts')
-    .update({ ...updateData, updated_at: new Date().toISOString() })
+    .update({
+      ...updateData,
+      original_lang: sourceLang,
+      category: category || null,
+      tags: tags ?? [],
+      notify_comment: notify_comment !== false,
+      notify_email: notify_comment !== false ? (notify_email || null) : null,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', id)
     .select()
     .single()
