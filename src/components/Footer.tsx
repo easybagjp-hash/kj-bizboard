@@ -26,11 +26,11 @@ export default function Footer({ lang }: { lang: 'ko' | 'ja' }) {
             </p>
           </div>
           <div className="flex items-center gap-4">
-            <Link href="/terms" className="hover:text-gray-600">
+            <Link href={`/terms?lang=${lang}`} className="hover:text-gray-600">
               {lang === 'ko' ? '이용약관' : '利用規約'}
             </Link>
             <span className="text-gray-200">|</span>
-            <Link href="/privacy" className="hover:text-gray-600">
+            <Link href={`/privacy?lang=${lang}`} className="hover:text-gray-600">
               {lang === 'ko' ? '개인정보처리방침' : 'プライバシーポリシー'}
             </Link>
             <span className="text-gray-200">|</span>

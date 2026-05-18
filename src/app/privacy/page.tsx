@@ -1,11 +1,14 @@
 'use client'
 
 import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Footer from '@/components/Footer'
 
 export default function PrivacyPage() {
-  const [lang, setLang] = useState<'ko' | 'ja'>('ko')
+  const searchParams = useSearchParams()
+  const initialLang = (searchParams.get('lang') as 'ko' | 'ja') || 'ko'
+  const [lang, setLang] = useState<'ko' | 'ja'>(initialLang)
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
