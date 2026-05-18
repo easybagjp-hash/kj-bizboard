@@ -52,4 +52,6 @@ export type Comment = {
   updated_at: string | null
   user_id: string | null
   status: PostStatus
+  notify_reply: boolean
+  notify_email: string | null
 }

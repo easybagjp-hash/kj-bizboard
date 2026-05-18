@@ -59,7 +59,11 @@ export default function PostDetailPage() {
   const [replyError, setReplyError] = useState('')
 
   const [commentWritingLang, setCommentWritingLang] = useState<'ko' | 'ja'>('ko')
+  const [commentNotify, setCommentNotify] = useState(true)
+  const [commentNotifyEmail, setCommentNotifyEmail] = useState('')
   const [replyWritingLang, setReplyWritingLang] = useState<'ko' | 'ja'>('ko')
+  const [replyNotify, setReplyNotify] = useState(true)
+  const [replyNotifyEmail, setReplyNotifyEmail] = useState('')
 
   useEffect(() => {
     setCommentWritingLang(lang)
@@ -126,6 +130,8 @@ export default function PostDetailPage() {
         const name = data.user.user_metadata?.full_name || data.user.email || ''
         setCommentForm((f) => ({ ...f, author_name: name }))
         setReplyForm((f) => ({ ...f, author_name: name }))
+        setCommentNotifyEmail(data.user.email ?? '')
+        setReplyNotifyEmail(data.user.email ?? '')
       }
     })
   }, [])
@@ -320,7 +326,13 @@ export default function PostDetailPage() {
       const res = await fetch(`/api/posts/${id}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...replyForm, original_lang: replyWritingLang, parent_id: parentId }),
+        body: JSON.stringify({
+          ...replyForm,
+          original_lang: replyWritingLang,
+          parent_id: parentId,
+          notify_reply: replyNotify,
+          notify_email: replyNotify ? replyNotifyEmail.trim() : null,
+        }),
       })
       if (!res.ok) {
         const data = await res.json()
@@ -345,7 +357,12 @@ export default function PostDetailPage() {
       const res = await fetch(`/api/posts/${id}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...commentForm, original_lang: commentWritingLang }),
+        body: JSON.stringify({
+          ...commentForm,
+          original_lang: commentWritingLang,
+          notify_reply: commentNotify,
+          notify_email: commentNotify ? commentNotifyEmail.trim() : null,
+        }),
       })
       if (!res.ok) {
         const data = await res.json()
@@ -969,6 +986,35 @@ export default function PostDetailPage() {
                             placeholder={replyWritingLang === 'ko' ? '답글을 입력하세요' : '返信を入力してください'}
                             className="w-full border border-blue-100 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none bg-white"
                           />
+                          {/* 답글 알림 설정 */}
+                          <div className="space-y-1.5">
+                            <label className="flex items-center gap-2 cursor-pointer select-none group">
+                              <input
+                                type="checkbox"
+                                checked={replyNotify}
+                                onChange={(e) => setReplyNotify(e.target.checked)}
+                                className="w-3.5 h-3.5 rounded border-gray-300 accent-blue-600 cursor-pointer"
+                              />
+                              <span className="text-xs text-gray-600 group-hover:text-gray-900">
+                                {lang === 'ko' ? '답글이 달리면 이메일로 알림 받기' : '返信が届いたらメールで通知する'}
+                              </span>
+                            </label>
+                            {replyNotify && (
+                              <div className="flex items-center gap-2 pl-5">
+                                <label className="text-xs text-gray-400 shrink-0">
+                                  {lang === 'ko' ? '알림 이메일' : '通知先メール'}
+                                </label>
+                                <input
+                                  type="email"
+                                  value={replyNotifyEmail}
+                                  onChange={(e) => setReplyNotifyEmail(e.target.value)}
+                                  placeholder={lang === 'ko' ? '이메일 주소' : 'メールアドレス'}
+                                  className="flex-1 border border-blue-100 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                                />
+                              </div>
+                            )}
+                          </div>
+
                           {replyError && (
                             <p className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded">{replyError}</p>
                           )}
@@ -1066,6 +1112,34 @@ export default function PostDetailPage() {
               placeholder={commentWritingLang === 'ko' ? '댓글을 입력하세요' : 'コメントを入力してください'}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             />
+            {/* 댓글 알림 설정 */}
+            <div className="space-y-1.5">
+              <label className="flex items-center gap-2.5 cursor-pointer select-none group">
+                <input
+                  type="checkbox"
+                  checked={commentNotify}
+                  onChange={(e) => setCommentNotify(e.target.checked)}
+                  className="w-3.5 h-3.5 rounded border-gray-300 accent-blue-600 cursor-pointer"
+                />
+                <span className="text-xs text-gray-600 group-hover:text-gray-900">
+                  {lang === 'ko' ? '답글이 달리면 이메일로 알림 받기' : '返信が届いたらメールで通知する'}
+                </span>
+              </label>
+              {commentNotify && (
+                <div className="flex items-center gap-2 pl-5">
+                  <label className="text-xs text-gray-400 shrink-0">
+                    {lang === 'ko' ? '알림 이메일' : '通知先メール'}
+                  </label>
+                  <input
+                    type="email"
+                    value={commentNotifyEmail}
+                    onChange={(e) => setCommentNotifyEmail(e.target.value)}
+                    placeholder={lang === 'ko' ? '이메일 주소' : 'メールアドレス'}
+                    className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              )}
+            </div>
             {commentError && (
               <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{commentError}</p>
             )}
