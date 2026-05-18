@@ -379,7 +379,7 @@ function NewPostContent() {
               required
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              placeholder={writingLang === 'ko' ? '제목을 입력하세요' : 'タイトルを入力してください'}
+              placeholder={t.titlePlaceholder}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -391,7 +391,7 @@ function NewPostContent() {
               rows={8}
               value={form.content}
               onChange={(e) => setForm({ ...form, content: e.target.value })}
-              placeholder={writingLang === 'ko' ? '내용을 입력하세요' : '内容を入力してください'}
+              placeholder={t.contentPlaceholder}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             />
           </div>
