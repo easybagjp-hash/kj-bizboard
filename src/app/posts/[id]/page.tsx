@@ -615,7 +615,7 @@ export default function PostDetailPage() {
               onClick={() => setLang(post.original_lang)}
               className="text-sm text-blue-600 hover:underline"
             >
-              {post.original_lang === 'ko' ? '→ 한국어 원문 보기 🇰🇷' : '→ 日本語の原文を見る 🇯🇵'}
+              {lang === 'ko' ? '→ 일본어 원문 보기' : '→ 韓国語の原文を見る'}
             </button>
           </div>
         )}
