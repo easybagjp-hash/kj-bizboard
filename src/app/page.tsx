@@ -54,6 +54,11 @@ export default function HomePage() {
   const router = useRouter()
   const [posts, setPosts] = useState<Post[]>([])
   const [lang, setLang] = useState<'ko' | 'ja'>('ko')
+
+  function handleSetLang(l: 'ko' | 'ja') {
+    setLang(l)
+    localStorage.setItem('preferred-lang', l)
+  }
   const [category, setCategory] = useState<string>('전체')
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<User | null>(null)
@@ -92,6 +97,15 @@ export default function HomePage() {
   }
 
   useEffect(() => {
+    // Detect language: localStorage → browser language → default ja
+    const saved = localStorage.getItem('preferred-lang') as 'ko' | 'ja' | null
+    if (saved === 'ko' || saved === 'ja') {
+      setLang(saved)
+    } else {
+      const bl = navigator.language
+      setLang(bl.startsWith('ko') ? 'ko' : 'ja')
+    }
+
     fetchPosts('')
     const supabase = createClient()
     supabase.auth.getUser().then(({ data }) => setUser(data.user))
@@ -209,7 +223,7 @@ export default function HomePage() {
               {(lang === 'ko' ? (['ko', 'ja'] as const) : (['ja', 'ko'] as const)).map((l) => (
                 <button
                   key={l}
-                  onClick={() => setLang(l)}
+                  onClick={() => handleSetLang(l)}
                   className={`px-3 py-1.5 ${lang === l ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
                 >
                   {l === 'ko' ? '한국어' : '日本語'}
