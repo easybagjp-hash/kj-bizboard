@@ -29,3 +29,9 @@ input, textarea, select {
   color: #111827;
   -webkit-text-fill-color: #111827;
 }
+
+::placeholder {
+  color: #9ca3af;
+  -webkit-text-fill-color: #9ca3af;
+  opacity: 1; /* Firefox는 기본 opacity 0.54 적용 → 강제로 1로 설정 */
+}
