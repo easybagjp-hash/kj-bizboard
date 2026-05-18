@@ -1,4 +1,5 @@
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.aicafe.community'
+const FROM = process.env.EMAIL_FROM || 'AI✦Cafe <onboarding@resend.dev>'
 
 export async function sendCommentNotification({
   to,
@@ -57,7 +58,7 @@ export async function sendCommentNotification({
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        from: 'AI✦Cafe <onboarding@resend.dev>',
+        from: FROM,
         to,
         subject,
         html,
@@ -87,7 +88,7 @@ export async function sendAdminNotification(subject: string, body: string) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'KJ BizBoard <onboarding@resend.dev>',
+        from: FROM,
         to: adminEmail,
         subject,
         text: body,
