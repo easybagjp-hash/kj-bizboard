@@ -14,9 +14,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI*Cafe",
-  description: "AI*Cafe — 한일 비즈니스 커뮤니티 · Claude AI 자동 번역",
+  title: "AI✦Cafe",
+  description: "AI✦Cafe — 한일 비즈니스 커뮤니티 · Claude AI 자동 번역",
   icons: { icon: "/favicon.svg" },
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "AI✦Cafe",
+  },
 };
 
 export default function RootLayout({
