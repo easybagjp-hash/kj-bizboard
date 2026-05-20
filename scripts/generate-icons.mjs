@@ -3,66 +3,75 @@
  * 실행: node scripts/generate-icons.mjs
  */
 import sharp from 'sharp'
-import { writeFileSync } from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PUBLIC_DIR = path.join(__dirname, '..', 'public')
 
-const BG_COLOR = '#1a1a2e'      // 다크 네이비
-const STAR_COLOR = '#da7756'    // 클로드 주황
-const TEXT_COLOR = '#ffffff'    // 흰색
+const BG      = '#1a1a2e'  // 다크 네이비
+const STAR    = '#da7756'  // 클로드 주황
+const WHITE   = '#ffffff'
 
 /**
- * SVG로 아이콘 소스 생성 후 sharp로 PNG 변환
- * 안드로이드 적응형 아이콘: 텍스트를 중앙 70% 영역(safe zone) 안에 배치
+ * 512 기준으로 비율 계산 → 다른 크기에서도 동일 비율 유지
+ *
+ * 레이아웃 (safe zone = 중앙 70% = 358px):
+ *   ┌──────────────────────────────┐
+ *   │  safe zone (70%)            │
+ *   │                             │
+ *   │        AI✳          ← 큰 글씨
+ *   │       Cafe           ← 작은 글씨
+ *   │                             │
+ *   └──────────────────────────────┘
+ *
+ * tspan으로 ✳만 주황색 처리
  */
-function buildSvg(size) {
-  // safe zone = 중앙 70% → 텍스트 영역 = size * 0.70
-  const safeSize = size * 0.70
-  const fontSize = Math.round(safeSize * 0.30)      // "AI✦" 한 줄 크기
-  const subFontSize = Math.round(safeSize * 0.16)   // "Cafe" 크기
-  const cx = size / 2
+function buildSvg(S) {
+  const cx = S / 2
+  const cy = S / 2
 
-  // AI✦ 와 Cafe 를 세로 중앙 기준으로 배치
-  const gap = fontSize * 0.55
-  const lineY1 = cx - gap * 0.5    // AI✦ 줄
-  const lineY2 = cx + gap * 1.0    // Cafe 줄
+  // 폰트 크기: safe zone(70%) 기준
+  const safe     = S * 0.70
+  const mainSize = Math.round(safe * 0.38)   // "AI✳" 크기
+  const subSize  = Math.round(safe * 0.18)   // "Cafe" 크기
+  const gap      = Math.round(mainSize * 0.6) // 두 줄 사이 간격
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">
-  <rect width="${size}" height="${size}" fill="${BG_COLOR}"/>
-  <!-- AI✦ (tspan으로 ✦만 주황색) -->
+  // 두 줄을 세로 중앙 정렬
+  const y1 = cy - gap * 0.38  // "AI✳" 줄
+  const y2 = cy + gap * 0.72  // "Cafe" 줄
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${S}" height="${S}" viewBox="0 0 ${S} ${S}">
+  <rect width="${S}" height="${S}" fill="${BG}"/>
+  <!-- AI✳ (✳만 주황) -->
   <text
-    x="${cx}" y="${lineY1}"
-    text-anchor="middle" dominant-baseline="central"
-    font-family="'Helvetica Neue', Arial, sans-serif"
-    font-weight="800"
-    font-size="${fontSize}"
-  ><tspan fill="${TEXT_COLOR}">AI</tspan><tspan fill="${STAR_COLOR}">✦</tspan></text>
+    x="${cx}" y="${y1}"
+    text-anchor="middle"
+    dominant-baseline="central"
+    font-family="Arial Black, Arial, Helvetica, sans-serif"
+    font-weight="900"
+    font-size="${mainSize}"
+  ><tspan fill="${WHITE}">AI</tspan><tspan fill="${STAR}">✳</tspan></text>
   <!-- Cafe -->
   <text
-    x="${cx}" y="${lineY2}"
-    text-anchor="middle" dominant-baseline="central"
-    font-family="'Helvetica Neue', Arial, sans-serif"
+    x="${cx}" y="${y2}"
+    text-anchor="middle"
+    dominant-baseline="central"
+    font-family="Arial, Helvetica, sans-serif"
     font-weight="700"
-    font-size="${subFontSize}"
-    fill="${TEXT_COLOR}"
-    letter-spacing="6"
+    font-size="${subSize}"
+    fill="${WHITE}"
+    letter-spacing="${Math.round(subSize * 0.12)}"
   >Cafe</text>
 </svg>`
 }
 
 async function generateIcon(size, filename) {
   const svg = buildSvg(size)
-  const svgBuffer = Buffer.from(svg)
   const outPath = path.join(PUBLIC_DIR, filename)
-
-  await sharp(svgBuffer)
-    .png()
-    .toFile(outPath)
-
-  console.log(`✓ ${filename} (${size}x${size}) → ${outPath}`)
+  await sharp(Buffer.from(svg)).png().toFile(outPath)
+  const { size: bytes } = await import('fs').then(m => ({ size: m.statSync(outPath).size }))
+  console.log(`✓ ${filename}  ${size}×${size}  (${(bytes / 1024).toFixed(1)} KB)`)
 }
 
 async function main() {
@@ -72,4 +81,4 @@ async function main() {
   console.log('\n✅ 완료!')
 }
 
-main().catch((e) => { console.error(e); process.exit(1) })
+main().catch(e => { console.error(e); process.exit(1) })
