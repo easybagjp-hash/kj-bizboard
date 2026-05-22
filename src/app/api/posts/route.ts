@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { translatePost } from '@/lib/translation'
+import { translatePost, translateTags } from '@/lib/translation'
 import { createClient } from '@/lib/supabase-server'
 
 export async function GET(req: NextRequest) {
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   if (q) {
     const escaped = q.replace(/[%_]/g, '\\$&')
     query = query.or(
-      `title_ko.ilike.%${escaped}%,content_ko.ilike.%${escaped}%,title_ja.ilike.%${escaped}%,content_ja.ilike.%${escaped}%`
+      `title_ko.ilike.%${escaped}%,content_ko.ilike.%${escaped}%,title_ja.ilike.%${escaped}%,content_ja.ilike.%${escaped}%,tags_ko.cs.{${q}},tags_ja.cs.{${q}}`
     )
   }
 
@@ -47,6 +47,10 @@ export async function POST(req: NextRequest) {
       : { title_ja: title, content_ja: content, title_ko: translated.title, content_ko: translated.content }
 
   const attachments = body.attachments ?? []
+  const tagsSrc: string[] = tags ?? []
+  const tagsTranslated = tagsSrc.length > 0 ? await translateTags(tagsSrc, original_lang) : []
+  const tags_ko = original_lang === 'ko' ? tagsSrc : tagsTranslated
+  const tags_ja = original_lang === 'ja' ? tagsSrc : tagsTranslated
 
   const { data, error } = await supabase
     .from('posts')
@@ -57,7 +61,9 @@ export async function POST(req: NextRequest) {
       category: category || '',
       user_id: user?.id ?? null,
       attachments,
-      tags: tags ?? [],
+      tags: tagsSrc,
+      tags_ko,
+      tags_ja,
       notify_comment: notify_comment !== false,
       notify_email: notify_comment !== false ? (notify_email || null) : null,
     }])

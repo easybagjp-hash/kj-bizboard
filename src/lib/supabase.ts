@@ -29,6 +29,8 @@ export type Post = {
   attachments: Attachment[] | null
   status: PostStatus
   tags: string[] | null
+  tags_ko: string[] | null
+  tags_ja: string[] | null
   notify_comment: boolean
   notify_email: string | null
 }

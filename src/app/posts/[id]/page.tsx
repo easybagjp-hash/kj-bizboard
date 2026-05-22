@@ -422,7 +422,7 @@ export default function PostDetailPage() {
             </div>
           )}
           <div className="flex items-center gap-2 mb-4 flex-wrap">
-            {post.tags && post.tags.length > 0 && post.tags.map((tag) => (
+            {((lang === 'ko' ? post.tags_ko : post.tags_ja) || post.tags || []).map((tag) => (
               <span key={tag} className="text-xs text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
                 #{tag}
               </span>

@@ -337,15 +337,18 @@ export default function HomePage() {
                       <p className="text-sm text-gray-500 mt-1 line-clamp-2">
                         <Highlight text={content} query={searchQuery} />
                       </p>
-                      {post.tags && post.tags.length > 0 && (
-                        <div className="flex gap-1 flex-wrap mt-2">
-                          {post.tags.map((tag) => (
-                            <span key={tag} className="text-xs text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
-                              #{tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+                      {(() => {
+                        const displayTags = (lang === 'ko' ? post.tags_ko : post.tags_ja) || post.tags
+                        return displayTags && displayTags.length > 0 ? (
+                          <div className="flex gap-1 flex-wrap mt-2">
+                            {displayTags.map((tag) => (
+                              <span key={tag} className="text-xs text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
+                                #{tag}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null
+                      })()}
                     </div>
                     <div className="text-right text-xs text-gray-400 shrink-0">
                       <p>{post.author_name}</p>

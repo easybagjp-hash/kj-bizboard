@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { createClient } from '@/lib/supabase-server'
-import { translatePost } from '@/lib/translation'
+import { translatePost, translateTags } from '@/lib/translation'
 
 type Params = Promise<{ id: string }>
 
@@ -56,13 +56,20 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
       ? { title_ko: title, content_ko: content, title_ja: translated.title, content_ja: translated.content }
       : { title_ja: title, content_ja: content, title_ko: translated.title, content_ko: translated.content }
 
+  const tagsSrc: string[] = tags ?? []
+  const tagsTranslated = tagsSrc.length > 0 ? await translateTags(tagsSrc, sourceLang) : []
+  const tags_ko = sourceLang === 'ko' ? tagsSrc : tagsTranslated
+  const tags_ja = sourceLang === 'ja' ? tagsSrc : tagsTranslated
+
   const { data, error } = await supabase
     .from('posts')
     .update({
       ...updateData,
       original_lang: sourceLang,
       category: category || '',
-      tags: tags ?? [],
+      tags: tagsSrc,
+      tags_ko,
+      tags_ja,
       notify_comment: notify_comment !== false,
       notify_email: notify_comment !== false ? (notify_email || null) : null,
       updated_at: new Date().toISOString(),
