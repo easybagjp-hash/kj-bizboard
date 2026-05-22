@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   if (q) {
     const escaped = q.replace(/[%_]/g, '\\$&')
     query = query.or(
-      `title_ko.ilike.%${escaped}%,content_ko.ilike.%${escaped}%,title_ja.ilike.%${escaped}%,content_ja.ilike.%${escaped}%,tags_ko.cs.{${q}},tags_ja.cs.{${q}}`
+      `title_ko.ilike.%${escaped}%,content_ko.ilike.%${escaped}%,title_ja.ilike.%${escaped}%,content_ja.ilike.%${escaped}%,author_name.ilike.%${escaped}%,tags_ko.cs.{${q}},tags_ja.cs.{${q}}`
     )
   }
 
