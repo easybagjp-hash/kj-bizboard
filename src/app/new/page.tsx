@@ -7,14 +7,6 @@ import { createClient } from '@/lib/supabase-browser'
 import type { Attachment } from '@/lib/supabase'
 import type { User } from '@supabase/supabase-js'
 
-const CATEGORIES: { value: string; ko: string; ja: string }[] = [
-  { value: 'AI·로봇',       ko: 'AI·로봇',        ja: 'AI·ロボット' },
-  { value: 'ビジネス·취업',  ko: '비즈니스·취업',  ja: 'ビジネス·就職' },
-  { value: '生活·문화',      ko: '생활·문화',      ja: '生活·文化' },
-  { value: '質問·질문',      ko: '질문',           ja: '質問' },
-  { value: '雑談·잡담',      ko: '잡담',           ja: '雑談' },
-  { value: '제안·建議',      ko: '제안·건의',      ja: '提案·建議' },
-]
 
 const ALLOWED_TYPES = new Set([
   'image/jpeg', 'image/png', 'image/gif',
@@ -56,7 +48,6 @@ function NewPostContent() {
     title: '',
     content: '',
     author_name: '',
-    category: 'AI·로봇',
   })
   const [notifyComment, setNotifyComment] = useState(true)
   const [notifyEmail, setNotifyEmail] = useState('')
@@ -100,7 +91,6 @@ function NewPostContent() {
       title: '제목',
       content: '내용',
       author: '작성자명',
-      category: '카테고리',
       submit: '번역 후 게시',
       submitting: '번역 중...',
       cancel: '취소',
@@ -115,7 +105,6 @@ function NewPostContent() {
       title: 'タイトル',
       content: '内容',
       author: '投稿者名',
-      category: 'カテゴリ',
       submit: '翻訳して投稿',
       submitting: '翻訳中...',
       cancel: 'キャンセル',
@@ -312,28 +301,6 @@ function NewPostContent() {
                 {lang === 'ko' ? 'Google 계정으로 로그인됨' : 'Googleアカウントでログイン中'}
               </p>
             )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t.category} <span className="text-red-400 text-xs">*</span>
-            </label>
-            <div className="flex gap-2 flex-wrap">
-              {CATEGORIES.map((cat) => (
-                <button
-                  key={cat.value}
-                  type="button"
-                  onClick={() => setForm({ ...form, category: cat.value })}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
-                    form.category === cat.value
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                  }`}
-                >
-                  {cat[lang]}
-                </button>
-              ))}
-            </div>
           </div>
 
           <div>

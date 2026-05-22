@@ -5,20 +5,7 @@ import { useParams, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Post, Comment, Attachment } from '@/lib/supabase'
 
-const CATEGORIES: { value: string; ko: string; ja: string }[] = [
-  { value: 'AI·로봇',       ko: 'AI·로봇',        ja: 'AI·ロボット' },
-  { value: 'ビジネス·취업',  ko: '비즈니스·취업',  ja: 'ビジネス·就職' },
-  { value: '生活·문화',      ko: '생활·문화',      ja: '生活·文化' },
-  { value: '質問·질문',      ko: '질문',           ja: '質問' },
-  { value: '雑談·잡담',      ko: '잡담',           ja: '雑談' },
-  { value: '제안·建議',      ko: '제안·건의',      ja: '提案·建議' },
-]
 
-function getCategoryLabel(category: string | null, lang: 'ko' | 'ja'): string {
-  if (!category) return lang === 'ko' ? '미분류' : '未分類'
-  const found = CATEGORIES.find((c) => c.value === category)
-  return found ? found[lang] : category
-}
 import { createClient } from '@/lib/supabase-browser'
 import type { User } from '@supabase/supabase-js'
 
@@ -83,7 +70,6 @@ export default function PostDetailPage() {
   const [editingPost, setEditingPost] = useState(false)
   const [editPostForm, setEditPostForm] = useState({ author_name: '', title: '', content: '' })
   const [editPostWritingLang, setEditPostWritingLang] = useState<'ko' | 'ja'>('ko')
-  const [editPostCategory, setEditPostCategory] = useState<string>('AI·로봇')
   const [editPostTags, setEditPostTags] = useState<string[]>([])
   const [editPostTagInput, setEditPostTagInput] = useState('')
   const [editPostNotifyComment, setEditPostNotifyComment] = useState(true)
@@ -182,7 +168,6 @@ export default function PostDetailPage() {
     const title = post.original_lang === 'ko' ? post.title_ko : post.title_ja
     const content = post.original_lang === 'ko' ? post.content_ko : post.content_ja
     setEditPostWritingLang(post.original_lang)
-    setEditPostCategory(post.category || 'AI·로봇')
     setEditPostTags(post.tags || [])
     setEditPostTagInput('')
     setEditPostNotifyComment(post.notify_comment ?? true)
@@ -207,7 +192,6 @@ export default function PostDetailPage() {
         body: JSON.stringify({
           ...editPostForm,
           original_lang: editPostWritingLang,
-          category: editPostCategory,
           tags: editPostTags,
           notify_comment: editPostNotifyComment,
           notify_email: editPostNotifyComment ? editPostNotifyEmail.trim() : null,
@@ -438,11 +422,6 @@ export default function PostDetailPage() {
             </div>
           )}
           <div className="flex items-center gap-2 mb-4 flex-wrap">
-            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-              post.category ? 'text-blue-600 bg-blue-50' : 'text-gray-400 bg-gray-100'
-            }`}>
-              {getCategoryLabel(post.category, lang)}
-            </span>
             {post.tags && post.tags.length > 0 && post.tags.map((tag) => (
               <span key={tag} className="text-xs text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
                 #{tag}
@@ -484,29 +463,6 @@ export default function PostDetailPage() {
                     ? '한국어로 작성 → 일본어 자동 번역 저장'
                     : '日本語で作成 → 韓国語に自動翻訳して保存'}
                 </p>
-              </div>
-
-              {/* 카테고리 */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {lang === 'ko' ? '카테고리' : 'カテゴリ'}
-                </label>
-                <div className="flex gap-2 flex-wrap">
-                  {CATEGORIES.map((cat) => (
-                    <button
-                      key={cat.value}
-                      type="button"
-                      onClick={() => setEditPostCategory(cat.value)}
-                      className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
-                        editPostCategory === cat.value
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      {cat[lang]}
-                    </button>
-                  ))}
-                </div>
               </div>
 
               {/* 태그 */}

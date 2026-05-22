@@ -8,27 +8,6 @@ import { createClient } from '@/lib/supabase-browser'
 import type { User } from '@supabase/supabase-js'
 import Footer from '@/components/Footer'
 
-type Category = { value: string; ko: string; ja: string }
-
-const CATEGORIES: Category[] = [
-  { value: 'AI·로봇',       ko: 'AI·로봇',        ja: 'AI·ロボット' },
-  { value: 'ビジネス·취업',  ko: '비즈니스·취업',  ja: 'ビジネス·就職' },
-  { value: '生活·문화',      ko: '생활·문화',      ja: '生活·文化' },
-  { value: '質問·질문',      ko: '질문',           ja: '質問' },
-  { value: '雑談·잡담',      ko: '잡담',           ja: '雑談' },
-  { value: '제안·建議',      ko: '제안·건의',      ja: '提案·建議' },
-]
-
-const FILTER_CATEGORIES: Category[] = [
-  { value: '전체', ko: '전체', ja: 'すべて' },
-  ...CATEGORIES,
-]
-
-function getCategoryLabel(category: string | null, lang: 'ko' | 'ja'): string {
-  if (!category) return lang === 'ko' ? '미분류' : '未分類'
-  const found = CATEGORIES.find((c) => c.value === category)
-  return found ? found[lang] : category
-}
 
 const REPORT_REASONS = {
   ko: ['스팸·광고', '욕설·비방', '허위정보', '기타'],
@@ -59,7 +38,6 @@ export default function HomePage() {
     setLang(l)
     localStorage.setItem('preferred-lang', l)
   }
-  const [category, setCategory] = useState<string>('전체')
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<User | null>(null)
 
@@ -132,7 +110,6 @@ export default function HomePage() {
     const q = searchInput.trim()
     setSearchQuery(q)
     fetchPosts(q)
-    setCategory('전체')
   }
 
   function clearSearch() {
@@ -184,10 +161,6 @@ export default function HomePage() {
     setReportSuccess(true)
   }
 
-  const filtered = category === '전체'
-    ? posts
-    : posts.filter((p) => p.category === category)
-
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 shadow-sm">
@@ -197,7 +170,7 @@ export default function HomePage() {
               AI<span style={{ color: '#da7756' }}>✦</span>Cafe
             </h1>
             <p className="text-sm text-gray-500 mt-0.5">
-              {lang === 'ko' ? 'AI로 연결하는 한일 커뮤니티' : 'AIでつながる日韓コミュニティ'}
+              {lang === 'ko' ? 'AI로 연결하는 한일 비즈니스 커뮤니티' : 'AIでつながる日韓ビジネスコミュニティ'}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -309,8 +282,8 @@ export default function HomePage() {
           <div className="mb-4 flex items-center gap-2">
             <span className="text-sm text-gray-700">
               {lang === 'ko'
-                ? <><span className="font-semibold text-blue-600">"{searchQuery}"</span> 검색 결과 <span className="font-semibold">{filtered.length}건</span></>
-                : <><span className="font-semibold text-blue-600">「{searchQuery}」</span>の検索結果 <span className="font-semibold">{filtered.length}件</span></>
+                ? <><span className="font-semibold text-blue-600">"{searchQuery}"</span> 검색 결과 <span className="font-semibold">{posts.length}건</span></>
+                : <><span className="font-semibold text-blue-600">「{searchQuery}」</span>の検索結果 <span className="font-semibold">{posts.length}件</span></>
               }
             </span>
             <button onClick={clearSearch} className="text-xs text-gray-400 hover:text-gray-600 underline">
@@ -319,27 +292,11 @@ export default function HomePage() {
           </div>
         )}
 
-        <div className="flex gap-2 mb-6 flex-wrap">
-          {FILTER_CATEGORIES.map((cat) => (
-            <button
-              key={cat.value}
-              onClick={() => setCategory(cat.value)}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                category === cat.value
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-              }`}
-            >
-              {cat[lang]}
-            </button>
-          ))}
-        </div>
-
         {loading ? (
           <div className="text-center py-20 text-gray-400">
             {lang === 'ko' ? '불러오는 중...' : '読み込み中...'}
           </div>
-        ) : filtered.length === 0 ? (
+        ) : posts.length === 0 ? (
           <div className="text-center py-20 text-gray-400">
             {searchQuery
               ? (lang === 'ko' ? '검색 결과가 없습니다.' : '検索結果がありません。')
@@ -347,7 +304,7 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {filtered.map((post) => {
+            {posts.map((post) => {
               const title = lang === 'ko' ? post.title_ko : post.title_ja
               const content = lang === 'ko' ? post.content_ko : post.content_ja
               const isHidden = post.status === 'hidden'
@@ -363,11 +320,6 @@ export default function HomePage() {
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                          post.category ? 'text-blue-600 bg-blue-50' : 'text-gray-400 bg-gray-100'
-                        }`}>
-                          {getCategoryLabel(post.category, lang)}
-                        </span>
                         {isHidden && (
                           <span className="text-xs font-bold text-orange-500 border border-orange-300 bg-orange-50 px-1.5 py-0.5 rounded">
                             숨김
