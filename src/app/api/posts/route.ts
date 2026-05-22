@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
       ...postData,
       original_lang,
       author_name,
-      category: category || null,
+      category: category || '',
       user_id: user?.id ?? null,
       attachments,
       tags: tags ?? [],

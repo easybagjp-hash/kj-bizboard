@@ -61,7 +61,7 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
     .update({
       ...updateData,
       original_lang: sourceLang,
-      category: category || null,
+      category: category || '',
       tags: tags ?? [],
       notify_comment: notify_comment !== false,
       notify_email: notify_comment !== false ? (notify_email || null) : null,
