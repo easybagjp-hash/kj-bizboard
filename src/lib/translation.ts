@@ -44,6 +44,7 @@ async function translateSingle(text: string, from: 'ko' | 'ja', to: 'ko' | 'ja')
     system: `You are a professional Korean-Japanese business translator.
 Translate the given text from ${langMap[from]} to ${langMap[to]} accurately and naturally.
 Output only the translated text with no explanations or additional content.
+Preserve the original paragraph structure exactly: if the input has blank lines between paragraphs (double newlines), keep the same blank lines in the output.
 If the text contains placeholders like __URL_0__, __URL_1__, etc., keep them exactly as-is without translating or modifying them.`,
     messages: [
       { role: 'user', content: clean },
