@@ -40,18 +40,19 @@ async function translateSingle(text: string, from: 'ko' | 'ja', to: 'ko' | 'ja')
   // 3. \n\n으로 단락 분리 — 빈 단락(연속 줄바꿈)도 위치 그대로 보존
   const allParagraphs = afterUrl.split('\n\n')
 
-  // 4. 빈 단락과 내용 있는 단락을 분리 (빈 단락은 Claude에 보내지 않음)
-  const nonEmptyIndices: number[] = []
-  const nonEmptyParagraphs: string[] = []
+  // 4. 번역이 필요한 단락만 추출 (텍스트 있는 것만 Claude에 보냄)
+  //    빈 단락, URL-only 단락은 Claude에 보내지 않고 원문 그대로 보존
+  const translatableIndices: number[] = []
+  const translatableParagraphs: string[] = []
   allParagraphs.forEach((p, i) => {
     if (p.replace(/__URL_\d+__/g, '').trim() !== '') {
-      nonEmptyIndices.push(i)
-      nonEmptyParagraphs.push(p)
+      translatableIndices.push(i)
+      translatableParagraphs.push(p)
     }
   })
 
   // 5. 단락 내 단일 \n → __NL__ 치환
-  const encoded = nonEmptyParagraphs.map(p => p.replace(/\n/g, '__NL__'))
+  const encoded = translatableParagraphs.map(p => p.replace(/\n/g, '__NL__'))
 
   // 6. JSON 배열로 전달
   const inputJson = JSON.stringify(encoded)
@@ -92,21 +93,27 @@ Rules:
     translatedNonEmpty = [rawOutput]
   }
 
-  // 8. 번역된 단락을 원래 위치에 복원, 빈 단락도 원위치 삽입
-  const result = allParagraphs.map((_, i) => {
-    const nonEmptyPos = nonEmptyIndices.indexOf(i)
-    if (nonEmptyPos !== -1) {
-      const translated = translatedNonEmpty[nonEmptyPos] ?? nonEmptyParagraphs[nonEmptyPos]
+  // 8. 번역된 단락을 원래 위치에 복원, 빈 단락/URL-only 단락도 원위치 삽입
+  const result = allParagraphs.map((p, i) => {
+    const transPos = translatableIndices.indexOf(i)
+    if (transPos !== -1) {
+      const translated = translatedNonEmpty[transPos] ?? translatableParagraphs[transPos]
       return translated.replace(/__NL__/g, '\n')
     }
-    return ''  // 빈 단락 → 그대로 빈 문자열
+    return p  // 빈 단락 또는 URL-only 단락 → 원문 그대로 보존
   })
 
   const rejoined = result.join('\n\n')
 
   // 8. URL 복원
   const restored = restoreUrls(rejoined, urls)
-  const missing = urls.filter((_, i) => !block.text.includes(`__URL_${i}__`))
+
+  // Claude에게 실제로 보낸 텍스트에 포함된 URL만 누락 여부 체크
+  // (URL-only 단락은 Claude에 보내지 않으므로 block.text에 없어도 정상)
+  const sentText = translatableParagraphs.join('\n')
+  const missing = urls.filter((_, i) =>
+    sentText.includes(`__URL_${i}__`) && !block.text.includes(`__URL_${i}__`)
+  )
   return missing.length > 0 ? restored + '\n' + missing.join('\n') : restored
 }
 
