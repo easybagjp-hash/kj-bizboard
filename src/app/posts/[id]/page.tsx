@@ -8,6 +8,7 @@ import { Post, Comment, Attachment } from '@/lib/supabase'
 
 import { createClient } from '@/lib/supabase-browser'
 import type { User } from '@supabase/supabase-js'
+import AutoLink from '@/components/AutoLink'
 
 type CommentNode = Comment & { replies: CommentNode[] }
 
@@ -711,7 +712,7 @@ export default function PostDetailPage() {
               </div>
 
               <div className="text-gray-700 leading-relaxed whitespace-pre-wrap text-[15px]">
-                {lang === 'ko' ? post.content_ko : post.content_ja}
+                <AutoLink text={lang === 'ko' ? post.content_ko : post.content_ja} />
               </div>
             </>
           )}
@@ -999,7 +1000,7 @@ export default function PostDetailPage() {
                         </form>
                       ) : (
                         <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                          {lang === 'ko' ? node.content_ko : node.content_ja}
+                          <AutoLink text={lang === 'ko' ? node.content_ko : node.content_ja} />
                           {node.updated_at && (
                             <span className="ml-2 text-xs text-gray-400">
                               ({lang === 'ko' ? '수정됨' : '編集済み'})
