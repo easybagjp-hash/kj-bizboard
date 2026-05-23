@@ -1,7 +1,8 @@
 {
   "functions": {
-    "src/app/api/posts/route.ts": { "maxDuration": 300 },
-    "src/app/api/posts/[id]/route.ts": { "maxDuration": 300 },
-    "src/app/api/posts/[id]/comments/route.ts": { "maxDuration": 300 }
+    "src/app/api/posts/route.ts": { "maxDuration": 60 },
+    "src/app/api/posts/[id]/route.ts": { "maxDuration": 60 },
+    "src/app/api/posts/[id]/translate/route.ts": { "maxDuration": 300 },
+    "src/app/api/posts/[id]/comments/route.ts": { "maxDuration": 60 }
   }
 }

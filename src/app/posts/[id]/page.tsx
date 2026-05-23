@@ -106,23 +106,20 @@ export default function PostDetailPage() {
       .then((data) => { setPost(data); setLoading(false) })
   }, [id])
 
-  // 번역 중 폴링: translation_pending이 true인 동안 3초마다 게시글 재조회
+  // 번역 중일 때 translate 엔드포인트 직접 호출 (폴링 대신 단발성)
   useEffect(() => {
     if (!post?.translation_pending) return
 
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/posts/${id}`)
-        if (!res.ok) return
-        const updated = await res.json()
-        setPost(updated)
-        if (!updated.translation_pending) {
-          clearInterval(interval)
-        }
-      } catch { /* 네트워크 오류 무시 */ }
-    }, 3000)
+    let cancelled = false
 
-    return () => clearInterval(interval)
+    fetch(`/api/posts/${id}/translate`, { method: 'POST' })
+      .then((res) => res.ok ? res.json() : null)
+      .then((updated) => {
+        if (!cancelled && updated && !updated.error) setPost(updated)
+      })
+      .catch(() => { /* 네트워크 오류 무시 */ })
+
+    return () => { cancelled = true }
   }, [id, post?.translation_pending])
 
   useEffect(() => {
