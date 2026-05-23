@@ -388,6 +388,7 @@ export default function HomePage() {
               const title = lang === 'ko' ? post.title_ko : post.title_ja
               const content = lang === 'ko' ? post.content_ko : post.content_ja
               const isHidden = post.status === 'hidden'
+              const isTranslationPending = post.title_ko === post.title_ja && post.content_ko === post.content_ja
 
               return (
                 <div
@@ -403,6 +404,11 @@ export default function HomePage() {
                         {isHidden && (
                           <span className="text-xs font-bold text-orange-500 border border-orange-300 bg-orange-50 px-1.5 py-0.5 rounded">
                             숨김
+                          </span>
+                        )}
+                        {isTranslationPending && (
+                          <span className="text-xs text-blue-400 animate-pulse">
+                            🤖 {lang === 'ko' ? '번역 중...' : '翻訳中...'}
                           </span>
                         )}
                         {post.updated_at && (
