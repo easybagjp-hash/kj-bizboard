@@ -37,13 +37,23 @@ async function translateSingle(text: string, from: 'ko' | 'ja', to: 'ko' | 'ja')
   const textOnly = afterUrl.replace(/__URL_\d+__/g, '').trim()
   if (!textOnly) return text
 
-  // 3. \n\n으로 단락 분리 — 구조는 코드에서 직접 보존
-  const paragraphs = afterUrl.split('\n\n')
+  // 3. \n\n으로 단락 분리 — 빈 단락(연속 줄바꿈)도 위치 그대로 보존
+  const allParagraphs = afterUrl.split('\n\n')
 
-  // 4. 단락 내 단일 \n → __NL__ 치환
-  const encoded = paragraphs.map(p => p.replace(/\n/g, '__NL__'))
+  // 4. 빈 단락과 내용 있는 단락을 분리 (빈 단락은 Claude에 보내지 않음)
+  const nonEmptyIndices: number[] = []
+  const nonEmptyParagraphs: string[] = []
+  allParagraphs.forEach((p, i) => {
+    if (p.replace(/__URL_\d+__/g, '').trim() !== '') {
+      nonEmptyIndices.push(i)
+      nonEmptyParagraphs.push(p)
+    }
+  })
 
-  // 5. JSON 배열로 전달 — 개수·구조가 명확해 Claude가 지킴
+  // 5. 단락 내 단일 \n → __NL__ 치환
+  const encoded = nonEmptyParagraphs.map(p => p.replace(/\n/g, '__NL__'))
+
+  // 6. JSON 배열로 전달
   const inputJson = JSON.stringify(encoded)
 
   const message = await client.messages.create({
@@ -64,28 +74,35 @@ Rules:
   const block = message.content[0]
   if (block.type !== 'text') throw new Error('Unexpected response type')
 
-  // 6. JSON 파싱 (마크다운 코드블록 감싸진 경우 제거)
+  // 7. JSON 파싱 (마크다운 코드블록 감싸진 경우 제거)
   const rawOutput = block.text.trim()
     .replace(/^```(?:json)?\s*/i, '')
     .replace(/\s*```$/i, '')
     .trim()
 
-  let translatedParagraphs: string[]
+  let translatedNonEmpty: string[]
   try {
     const parsed = JSON.parse(rawOutput)
     if (Array.isArray(parsed) && parsed.length > 0) {
-      translatedParagraphs = parsed.map(String)
+      translatedNonEmpty = parsed.map(String)
     } else {
-      translatedParagraphs = [rawOutput]
+      translatedNonEmpty = [rawOutput]
     }
   } catch {
-    // JSON 파싱 실패: 원문 그대로 사용
-    translatedParagraphs = [rawOutput]
+    translatedNonEmpty = [rawOutput]
   }
 
-  // 7. __NL__ 복원 → \n\n으로 재결합
-  const decoded = translatedParagraphs.map(p => p.replace(/__NL__/g, '\n'))
-  const rejoined = decoded.join('\n\n')
+  // 8. 번역된 단락을 원래 위치에 복원, 빈 단락도 원위치 삽입
+  const result = allParagraphs.map((_, i) => {
+    const nonEmptyPos = nonEmptyIndices.indexOf(i)
+    if (nonEmptyPos !== -1) {
+      const translated = translatedNonEmpty[nonEmptyPos] ?? nonEmptyParagraphs[nonEmptyPos]
+      return translated.replace(/__NL__/g, '\n')
+    }
+    return ''  // 빈 단락 → 그대로 빈 문자열
+  })
+
+  const rejoined = result.join('\n\n')
 
   // 8. URL 복원
   const restored = restoreUrls(rejoined, urls)
