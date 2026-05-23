@@ -41,7 +41,16 @@ export async function POST(req: NextRequest) {
   const serverSupabase = await createClient()
   const { data: { user } } = await serverSupabase.auth.getUser()
 
-  const translated = await translatePost(title, content, original_lang)
+  // 번역 실패 시 원문을 반대 언어 필드에도 저장 (fallback)
+  let translationFailed = false
+  let translated: { title: string; content: string }
+  try {
+    translated = await translatePost(title, content, original_lang)
+  } catch (e) {
+    console.error('[Translation] translatePost 실패:', e)
+    translationFailed = true
+    translated = { title, content }
+  }
 
   const postData =
     original_lang === 'ko'
@@ -50,7 +59,14 @@ export async function POST(req: NextRequest) {
 
   const attachments = body.attachments ?? []
   const tagsSrc: string[] = tags ?? []
-  const tagsTranslated = tagsSrc.length > 0 ? await translateTags(tagsSrc, original_lang) : []
+
+  let tagsTranslated: string[] = []
+  try {
+    tagsTranslated = tagsSrc.length > 0 ? await translateTags(tagsSrc, original_lang) : []
+  } catch {
+    tagsTranslated = tagsSrc  // 태그 번역 실패 시 원본 태그 사용
+  }
+
   const tags_ko = original_lang === 'ko' ? tagsSrc : tagsTranslated
   const tags_ja = original_lang === 'ja' ? tagsSrc : tagsTranslated
 
@@ -73,5 +89,9 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data, { status: 201 })
+
+  return NextResponse.json(
+    { ...data, ...(translationFailed && { translation_failed: true }) },
+    { status: 201 }
+  )
 }

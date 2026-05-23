@@ -56,6 +56,7 @@ function NewPostContent() {
   const [submitting, setSubmitting] = useState(false)
   const [submitStep, setSubmitStep] = useState('')
   const [error, setError] = useState('')
+  const [savedPostId, setSavedPostId] = useState<string | null>(null)
   const [user, setUser] = useState<User | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [files, setFiles] = useState<File[]>([])
@@ -161,6 +162,7 @@ function NewPostContent() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+    setSavedPostId(null)
     setSubmitting(true)
 
     try {
@@ -175,21 +177,42 @@ function NewPostContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-        ...form,
-        original_lang: writingLang,
-        attachments,
-        tags,
-        notify_comment: notifyComment,
-        notify_email: notifyComment ? notifyEmail.trim() : null,
-      }),
+          ...form,
+          original_lang: writingLang,
+          attachments,
+          tags,
+          notify_comment: notifyComment,
+          notify_email: notifyComment ? notifyEmail.trim() : null,
+        }),
       })
 
       if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || '오류가 발생했습니다.')
+        // JSON이 아닌 응답(Vercel 타임아웃 등)도 안전하게 처리
+        let errorMsg = '오류가 발생했습니다.'
+        try {
+          const data = await res.json()
+          errorMsg = data.error || errorMsg
+        } catch {
+          errorMsg = lang === 'ko'
+            ? '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+            : 'サーバーエラーが発生しました。しばらくしてから再度お試しください。'
+        }
+        throw new Error(errorMsg)
       }
 
       const post = await res.json()
+
+      if (post.translation_failed) {
+        // 글은 저장됐지만 번역 실패 → 경고 표시, 게시글 링크 제공
+        setSavedPostId(post.id)
+        setError(lang === 'ko'
+          ? '글이 저장되었으나 번역에 실패했습니다. 수정 후 재시도하면 번역됩니다.'
+          : '投稿は保存されましたが、翻訳に失敗しました。再編集で再翻訳できます。')
+        setSubmitting(false)
+        setSubmitStep('')
+        return
+      }
+
       router.push(`/posts/${post.id}?lang=${lang}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : '오류가 발생했습니다.')
@@ -468,15 +491,25 @@ function NewPostContent() {
           </div>
 
           {error && (
-            <div className="flex items-center gap-2 bg-red-50 px-3 py-2 rounded-lg">
-              <p className="text-sm text-red-500 flex-1">{error}</p>
-              <button
-                type="button"
-                onClick={() => formRef.current?.requestSubmit()}
-                className="text-xs text-red-600 border border-red-200 px-2.5 py-1 rounded hover:bg-red-100 shrink-0 whitespace-nowrap"
-              >
-                {lang === 'ko' ? '다시 시도' : '再試行'}
-              </button>
+            <div className={`flex items-start gap-2 px-3 py-2 rounded-lg ${savedPostId ? 'bg-yellow-50' : 'bg-red-50'}`}>
+              <p className={`text-sm flex-1 ${savedPostId ? 'text-yellow-700' : 'text-red-500'}`}>{error}</p>
+              {savedPostId ? (
+                <button
+                  type="button"
+                  onClick={() => router.push(`/posts/${savedPostId}?lang=${lang}`)}
+                  className="text-xs text-blue-600 border border-blue-200 px-2.5 py-1 rounded hover:bg-blue-50 shrink-0 whitespace-nowrap"
+                >
+                  {lang === 'ko' ? '게시글 보기 →' : '投稿を見る →'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => formRef.current?.requestSubmit()}
+                  className="text-xs text-red-600 border border-red-200 px-2.5 py-1 rounded hover:bg-red-100 shrink-0 whitespace-nowrap"
+                >
+                  {lang === 'ko' ? '다시 시도' : '再試行'}
+                </button>
+              )}
             </div>
           )}
 

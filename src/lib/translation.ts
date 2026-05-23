@@ -95,10 +95,9 @@ export async function translatePost(
 ): Promise<{ title: string; content: string }> {
   const targetLang = originalLang === 'ko' ? 'ja' : 'ko'
 
-  const [translatedTitle, translatedContent] = await Promise.all([
-    translateText(title, originalLang, targetLang),
-    translateText(content, originalLang, targetLang),
-  ])
+  // 타임아웃 위험을 줄이기 위해 제목·내용을 순차 번역
+  const translatedTitle = await translateText(title, originalLang, targetLang)
+  const translatedContent = await translateText(content, originalLang, targetLang)
 
   return { title: translatedTitle, content: translatedContent }
 }

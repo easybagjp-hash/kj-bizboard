@@ -52,14 +52,29 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
     ? original_lang
     : post.original_lang
 
-  const translated = await translatePost(title, content, sourceLang)
+  // 번역 실패 시 원문을 반대 언어 필드에도 저장 (fallback)
+  let translationFailed = false
+  let translated: { title: string; content: string }
+  try {
+    translated = await translatePost(title, content, sourceLang)
+  } catch (e) {
+    console.error('[Translation] translatePost 실패:', e)
+    translationFailed = true
+    translated = { title, content }
+  }
+
   const updateData =
     sourceLang === 'ko'
       ? { title_ko: title, content_ko: content, title_ja: translated.title, content_ja: translated.content }
       : { title_ja: title, content_ja: content, title_ko: translated.title, content_ko: translated.content }
 
   const tagsSrc: string[] = tags ?? []
-  const tagsTranslated = tagsSrc.length > 0 ? await translateTags(tagsSrc, sourceLang) : []
+  let tagsTranslated: string[] = []
+  try {
+    tagsTranslated = tagsSrc.length > 0 ? await translateTags(tagsSrc, sourceLang) : []
+  } catch {
+    tagsTranslated = tagsSrc  // 태그 번역 실패 시 원본 태그 사용
+  }
   const tags_ko = sourceLang === 'ko' ? tagsSrc : tagsTranslated
   const tags_ja = sourceLang === 'ja' ? tagsSrc : tagsTranslated
 
@@ -81,7 +96,7 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+  return NextResponse.json({ ...data, ...(translationFailed && { translation_failed: true }) })
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Params }) {
