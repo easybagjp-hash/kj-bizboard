@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export async function GET() {
   const supabase = await createClient()
@@ -64,13 +65,16 @@ export async function PATCH(req: NextRequest) {
     .upsert({ id: user.id, email: user.email ?? '', display_name: name })
   if (profileError) return NextResponse.json({ error: profileError.message }, { status: 500 })
 
+  // bulk update 시 RLS 우회를 위해 admin 클라이언트 우선 사용 (없으면 user 클라이언트 fallback)
+  const db = supabaseAdmin ?? supabase
+
   // 2. 해당 유저의 모든 게시글 author_name 업데이트
-  const { error: postsError } = await supabase
+  const { error: postsError } = await db
     .from('posts').update({ author_name: name }).eq('user_id', user.id)
   if (postsError) return NextResponse.json({ error: postsError.message }, { status: 500 })
 
-  // 3. 해당 유저의 모든 댓글 author_name 업데이트
-  const { error: commentsError } = await supabase
+  // 3. 해당 유저의 모든 댓글/대댓글 author_name 업데이트
+  const { error: commentsError } = await db
     .from('comments').update({ author_name: name }).eq('user_id', user.id)
   if (commentsError) return NextResponse.json({ error: commentsError.message }, { status: 500 })
 
