@@ -33,6 +33,7 @@ export type Post = {
   tags_ja: string[] | null
   notify_comment: boolean
   notify_email: string | null
+  translation_pending?: boolean  // computed by API (title_ko === title_ja && content_ko === content_ja)
 }
 
 export type Profile = {

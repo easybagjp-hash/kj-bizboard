@@ -106,6 +106,25 @@ export default function PostDetailPage() {
       .then((data) => { setPost(data); setLoading(false) })
   }, [id])
 
+  // 번역 중 폴링: translation_pending이 true인 동안 3초마다 게시글 재조회
+  useEffect(() => {
+    if (!post?.translation_pending) return
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/posts/${id}`)
+        if (!res.ok) return
+        const updated = await res.json()
+        setPost(updated)
+        if (!updated.translation_pending) {
+          clearInterval(interval)
+        }
+      } catch { /* 네트워크 오류 무시 */ }
+    }, 3000)
+
+    return () => clearInterval(interval)
+  }, [id, post?.translation_pending])
+
   useEffect(() => {
     fetch(`/api/posts/${id}/comments`)
       .then((r) => r.json())
@@ -230,11 +249,7 @@ export default function PostDetailPage() {
       const updated = await res.json()
       setPost(updated)
       setEditingPost(false)
-      if (updated.translation_failed) {
-        setEditPostWarning(lang === 'ko'
-          ? '저장되었으나 번역에 실패했습니다. 수정 후 재시도하면 번역됩니다.'
-          : '保存されましたが翻訳に失敗しました。再編集で再翻訳できます。')
-      }
+      // translation_pending이면 폴링이 자동으로 시작됨 (위 useEffect)
     } catch (err) {
       setEditPostError(err instanceof Error ? err.message : '오류가 발생했습니다.')
     } finally {
@@ -472,11 +487,15 @@ export default function PostDetailPage() {
                 #{tag}
               </span>
             ))}
-            {isTranslated && (
+            {post.translation_pending ? (
+              <span className="flex items-center gap-1 text-xs text-blue-400 bg-blue-50 px-2 py-0.5 rounded-full animate-pulse">
+                🤖 {lang === 'ko' ? '번역 중...' : '翻訳中...'}
+              </span>
+            ) : isTranslated ? (
               <span className="text-xs text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full">
                 🤖 {lang === 'ko' ? 'Claude AI 번역' : 'Claude AI翻訳'}
               </span>
-            )}
+            ) : null}
           </div>
 
           {editingPost ? (
@@ -612,7 +631,7 @@ export default function PostDetailPage() {
               </div>
 
               <p className="text-xs text-blue-500">
-                🤖 {lang === 'ko' ? '저장 시 반대 언어로 자동 번역됩니다.' : '保存時に自動翻訳されます。'}
+                🤖 {lang === 'ko' ? '저장 후 백그라운드에서 자동 번역됩니다.' : '保存後、バックグラウンドで自動翻訳されます。'}
               </p>
               {editPostError && (
                 <div className="flex items-center gap-2 bg-red-50 px-3 py-2 rounded-lg">
@@ -640,7 +659,7 @@ export default function PostDetailPage() {
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60"
                 >
                   {editPostSubmitting
-                    ? (lang === 'ko' ? '번역 중...' : '翻訳中...')
+                    ? (lang === 'ko' ? '저장 중...' : '保存中...')
                     : (lang === 'ko' ? '저장' : '保存')}
                 </button>
               </div>

@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { createClient } from '@/lib/supabase-server'
 import { translatePost, translateTags } from '@/lib/translation'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export const maxDuration = 60
 
@@ -21,7 +22,9 @@ export async function GET(_req: NextRequest, { params }: { params: Params }) {
     return NextResponse.json({ error: '존재하지 않는 게시글입니다.' }, { status: 404 })
   }
 
-  return NextResponse.json(data)
+  // translation_pending: 양쪽 언어 필드가 동일하면 아직 번역 처리 중
+  const translation_pending = data.title_ko === data.title_ja && data.content_ko === data.content_ja
+  return NextResponse.json({ ...data, translation_pending })
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Params }) {
@@ -52,31 +55,12 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
     ? original_lang
     : post.original_lang
 
-  // 번역 실패 시 원문을 반대 언어 필드에도 저장 (fallback)
-  let translationFailed = false
-  let translated: { title: string; content: string }
-  try {
-    translated = await translatePost(title, content, sourceLang)
-  } catch (e) {
-    console.error('[Translation] translatePost 실패:', e)
-    translationFailed = true
-    translated = { title, content }
-  }
-
-  const updateData =
-    sourceLang === 'ko'
-      ? { title_ko: title, content_ko: content, title_ja: translated.title, content_ja: translated.content }
-      : { title_ja: title, content_ja: content, title_ko: translated.title, content_ko: translated.content }
-
   const tagsSrc: string[] = tags ?? []
-  let tagsTranslated: string[] = []
-  try {
-    tagsTranslated = tagsSrc.length > 0 ? await translateTags(tagsSrc, sourceLang) : []
-  } catch {
-    tagsTranslated = tagsSrc  // 태그 번역 실패 시 원본 태그 사용
-  }
-  const tags_ko = sourceLang === 'ko' ? tagsSrc : tagsTranslated
-  const tags_ja = sourceLang === 'ja' ? tagsSrc : tagsTranslated
+
+  // 번역 전: 원문을 양쪽 언어 필드에 동일하게 저장 (번역 중 임시 상태)
+  const updateData = sourceLang === 'ko'
+    ? { title_ko: title, content_ko: content, title_ja: title, content_ja: content }
+    : { title_ja: title, content_ja: content, title_ko: title, content_ko: content }
 
   const { data, error } = await supabase
     .from('posts')
@@ -85,8 +69,8 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
       original_lang: sourceLang,
       category: category || '',
       tags: tagsSrc,
-      tags_ko,
-      tags_ja,
+      tags_ko: tagsSrc,
+      tags_ja: tagsSrc,
       notify_comment: notify_comment !== false,
       notify_email: notify_comment !== false ? (notify_email || null) : null,
       updated_at: new Date().toISOString(),
@@ -96,7 +80,42 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ ...data, ...(translationFailed && { translation_failed: true }) })
+
+  // 응답 후 백그라운드에서 번역 실행
+  after(async () => {
+    const db = supabaseAdmin ?? supabase
+    if (!supabaseAdmin) {
+      console.warn('[Background Translation] supabaseAdmin 없음 — SUPABASE_SERVICE_ROLE_KEY 설정 필요. RLS로 인해 업데이트가 차단될 수 있습니다.')
+    }
+    try {
+      const translated = await translatePost(title, content, sourceLang)
+      let tagsTranslated = tagsSrc
+      try {
+        tagsTranslated = tagsSrc.length > 0 ? await translateTags(tagsSrc, sourceLang) : tagsSrc
+      } catch { /* 태그 번역 실패 시 원본 사용 */ }
+
+      const translatedData = sourceLang === 'ko'
+        ? { title_ja: translated.title, content_ja: translated.content }
+        : { title_ko: translated.title, content_ko: translated.content }
+
+      const tags_ko = sourceLang === 'ko' ? tagsSrc : tagsTranslated
+      const tags_ja = sourceLang === 'ja' ? tagsSrc : tagsTranslated
+
+      const { error: updateError } = await db
+        .from('posts')
+        .update({ ...translatedData, tags_ko, tags_ja })
+        .eq('id', id)
+
+      if (updateError) console.error('[Background Translation] DB 업데이트 실패:', updateError)
+      else console.log(`[Background Translation] 완료: post ${id}`)
+    } catch (e) {
+      console.error('[Background Translation] 번역 실패:', e)
+    }
+  })
+
+  // translation_pending: 양쪽 필드가 동일하면 아직 번역 중
+  const translation_pending = data.title_ko === data.title_ja && data.content_ko === data.content_ja
+  return NextResponse.json({ ...data, translation_pending })
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Params }) {
