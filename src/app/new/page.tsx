@@ -61,6 +61,7 @@ function NewPostContent() {
   const [files, setFiles] = useState<File[]>([])
   const [fileError, setFileError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const formRef = useRef<HTMLFormElement>(null)
 
   useEffect(() => {
     // URL 파라미터 우선, 없으면 브라우저 언어 자동 감지
@@ -257,7 +258,7 @@ function NewPostContent() {
       <main className="max-w-2xl mx-auto px-4 py-8">
         <p className="text-sm text-gray-500 mb-6 text-center">{t.sub}</p>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
+        <form ref={formRef} onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
 
           {/* 작성 언어 선택 */}
           <div>
@@ -467,7 +468,16 @@ function NewPostContent() {
           </div>
 
           {error && (
-            <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
+            <div className="flex items-center gap-2 bg-red-50 px-3 py-2 rounded-lg">
+              <p className="text-sm text-red-500 flex-1">{error}</p>
+              <button
+                type="button"
+                onClick={() => formRef.current?.requestSubmit()}
+                className="text-xs text-red-600 border border-red-200 px-2.5 py-1 rounded hover:bg-red-100 shrink-0 whitespace-nowrap"
+              >
+                {lang === 'ko' ? '다시 시도' : '再試行'}
+              </button>
+            </div>
           )}
 
           <div className="flex gap-3 pt-1">

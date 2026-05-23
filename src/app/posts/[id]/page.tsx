@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Post, Comment, Attachment } from '@/lib/supabase'
@@ -76,6 +76,7 @@ export default function PostDetailPage() {
   const [editPostNotifyEmail, setEditPostNotifyEmail] = useState('')
   const [editPostSubmitting, setEditPostSubmitting] = useState(false)
   const [editPostError, setEditPostError] = useState('')
+  const editFormRef = useRef<HTMLFormElement>(null)
 
   const [editingComment, setEditingComment] = useState<string | null>(null)
   const [editCommentForm, setEditCommentForm] = useState({ author_name: '', content: '' })
@@ -435,7 +436,7 @@ export default function PostDetailPage() {
           </div>
 
           {editingPost ? (
-            <form onSubmit={handleEditPostSubmit} className="space-y-5 mb-6 bg-gray-50 rounded-xl p-5 border border-gray-200">
+            <form ref={editFormRef} onSubmit={handleEditPostSubmit} className="space-y-5 mb-6 bg-gray-50 rounded-xl p-5 border border-gray-200">
 
               {/* 작성 언어 */}
               <div>
@@ -570,7 +571,16 @@ export default function PostDetailPage() {
                 🤖 {lang === 'ko' ? '저장 시 반대 언어로 자동 번역됩니다.' : '保存時に自動翻訳されます。'}
               </p>
               {editPostError && (
-                <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{editPostError}</p>
+                <div className="flex items-center gap-2 bg-red-50 px-3 py-2 rounded-lg">
+                  <p className="text-sm text-red-500 flex-1">{editPostError}</p>
+                  <button
+                    type="button"
+                    onClick={() => editFormRef.current?.requestSubmit()}
+                    className="text-xs text-red-600 border border-red-200 px-2.5 py-1 rounded hover:bg-red-100 shrink-0 whitespace-nowrap"
+                  >
+                    {lang === 'ko' ? '다시 시도' : '再試行'}
+                  </button>
+                </div>
               )}
               <div className="flex gap-2">
                 <button

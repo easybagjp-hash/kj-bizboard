@@ -3,6 +3,8 @@ import { supabase } from '@/lib/supabase'
 import { createClient } from '@/lib/supabase-server'
 import { translatePost, translateTags } from '@/lib/translation'
 
+export const maxDuration = 60
+
 type Params = Promise<{ id: string }>
 
 export async function GET(_req: NextRequest, { params }: { params: Params }) {

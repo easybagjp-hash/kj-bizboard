@@ -3,6 +3,8 @@ import { supabase } from '@/lib/supabase'
 import { translatePost, translateTags } from '@/lib/translation'
 import { createClient } from '@/lib/supabase-server'
 
+export const maxDuration = 60
+
 export async function GET(req: NextRequest) {
   const serverSupabase = await createClient()
   const { data: { user } } = await serverSupabase.auth.getUser()

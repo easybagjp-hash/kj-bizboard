@@ -4,12 +4,13 @@ const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 })
 
-export async function translateText(text: string, from: 'ko' | 'ja', to: 'ko' | 'ja'): Promise<string> {
+/** 단일 텍스트 청크를 번역 (max_tokens: 4096) */
+async function translateSingle(text: string, from: 'ko' | 'ja', to: 'ko' | 'ja'): Promise<string> {
   const langMap = { ko: '한국어', ja: '日本語' }
 
   const message = await client.messages.create({
     model: 'claude-opus-4-7',
-    max_tokens: 2048,
+    max_tokens: 4096,
     system: `You are a professional Korean-Japanese business translator.
 Translate the given text from ${langMap[from]} to ${langMap[to]} accurately and naturally.
 Output only the translated text with no explanations or additional content.`,
@@ -21,6 +22,42 @@ Output only the translated text with no explanations or additional content.`,
   const block = message.content[0]
   if (block.type !== 'text') throw new Error('Unexpected response type')
   return block.text
+}
+
+/** 긴 텍스트를 문단 단위로 청크 분할 (기본 최대 1400자/청크) */
+function splitIntoChunks(text: string, maxSize = 1400): string[] {
+  const paragraphs = text.split(/\n\n+/)
+  const chunks: string[] = []
+  let current = ''
+
+  for (const para of paragraphs) {
+    if (current && current.length + para.length + 2 > maxSize) {
+      chunks.push(current)
+      current = para
+    } else {
+      current = current ? current + '\n\n' + para : para
+    }
+  }
+  if (current) chunks.push(current)
+  return chunks
+}
+
+/**
+ * 텍스트 번역.
+ * 1500자 이하: 단일 API 호출
+ * 1500자 초과: 문단 단위로 분할 후 순차 번역, 결합
+ */
+export async function translateText(text: string, from: 'ko' | 'ja', to: 'ko' | 'ja'): Promise<string> {
+  if (text.length <= 1500) {
+    return translateSingle(text, from, to)
+  }
+
+  const chunks = splitIntoChunks(text)
+  const results: string[] = []
+  for (const chunk of chunks) {
+    results.push(await translateSingle(chunk, from, to))
+  }
+  return results.join('\n\n')
 }
 
 export async function translateTags(tags: string[], sourceLang: 'ko' | 'ja'): Promise<string[]> {
