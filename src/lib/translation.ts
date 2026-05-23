@@ -5,10 +5,6 @@ const client = new Anthropic({
 })
 
 // ─── URL 보존 유틸 ───────────────────────────────────────────────────────────
-// 번역 전: URL → __URL_n__ 플레이스홀더로 치환 (Claude가 URL을 번역·변형하지 않도록)
-// 번역 후: __URL_n__ → 원본 URL 복원
-// URL 표시(링크 변환)는 AutoLink 컴포넌트에서 별도로 처리
-
 const URL_REGEX = /https?:\/\/[^\s]+/g
 
 function extractUrls(text: string): { clean: string; urls: string[] } {
@@ -26,45 +22,73 @@ function restoreUrls(text: string, urls: string[]): string {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** 단일 텍스트 청크를 번역 (max_tokens: 4096) */
+/**
+ * 단일 텍스트 청크를 번역.
+ * 단락 구조(\n\n)는 코드에서 직접 보존 — Claude에 맡기지 않음.
+ * 단락 배열을 JSON으로 전달해 번역 후, \n\n으로 재결합.
+ */
 async function translateSingle(text: string, from: 'ko' | 'ja', to: 'ko' | 'ja'): Promise<string> {
   const langMap = { ko: '한국어', ja: '日本語' }
 
-  // 1. URL을 플레이스홀더로 치환
+  // 1. URL 치환
   const { clean: afterUrl, urls } = extractUrls(text)
 
-  // 2. 줄바꿈을 플레이스홀더로 치환 — Claude가 줄바꿈을 변형하지 않도록
-  //    \n\n (단락 구분) → __PARA__ / \n (줄바꿈) → __NL__
-  const clean = afterUrl
-    .replace(/\n\n/g, '__PARA__')
-    .replace(/\n/g, '__NL__')
-
-  // 3. 번역할 텍스트가 없으면 Claude 호출 건너뜀
-  const textOnly = clean.replace(/__URL_\d+__|__PARA__|__NL__/g, '').trim()
+  // 2. 번역할 텍스트가 없으면 건너뜀 (URL만 있는 단락)
+  const textOnly = afterUrl.replace(/__URL_\d+__/g, '').trim()
   if (!textOnly) return text
+
+  // 3. \n\n으로 단락 분리 — 구조는 코드에서 직접 보존
+  const paragraphs = afterUrl.split('\n\n')
+
+  // 4. 단락 내 단일 \n → __NL__ 치환
+  const encoded = paragraphs.map(p => p.replace(/\n/g, '__NL__'))
+
+  // 5. JSON 배열로 전달 — 개수·구조가 명확해 Claude가 지킴
+  const inputJson = JSON.stringify(encoded)
 
   const message = await client.messages.create({
     model: 'claude-opus-4-7',
     max_tokens: 4096,
     system: `You are a professional Korean-Japanese business translator.
-Translate the given text from ${langMap[from]} to ${langMap[to]} accurately and naturally.
-Output only the translated text with no explanations or additional content.
-The text contains placeholders: __PARA__ (paragraph break), __NL__ (line break), __URL_0__ etc. (URLs).
-Keep ALL placeholders exactly as-is — do not translate, remove, or modify them.`,
-    messages: [
-      { role: 'user', content: clean },
-    ],
+Input: a JSON array of strings (one string per paragraph) in ${langMap[from]}.
+Output: a JSON array with the SAME number of elements, each translated to ${langMap[to]}.
+Rules:
+- Output ONLY the raw JSON array — no markdown fences, no explanation, no extra text
+- Translate each element accurately and naturally
+- Keep "__URL_0__", "__URL_1__" etc. placeholders exactly as-is
+- Keep "__NL__" placeholders exactly as-is (they represent line breaks within a paragraph)
+- Do NOT add, remove, merge, or reorder elements`,
+    messages: [{ role: 'user', content: inputJson }],
   })
 
   const block = message.content[0]
   if (block.type !== 'text') throw new Error('Unexpected response type')
 
-  // 4. 플레이스홀더 복원: 줄바꿈 → URL 순서로
-  const restoredNewlines = block.text
-    .replace(/__PARA__/g, '\n\n')
-    .replace(/__NL__/g, '\n')
+  // 6. JSON 파싱 (마크다운 코드블록 감싸진 경우 제거)
+  const rawOutput = block.text.trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim()
 
-  const restored = restoreUrls(restoredNewlines, urls)
+  let translatedParagraphs: string[]
+  try {
+    const parsed = JSON.parse(rawOutput)
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      translatedParagraphs = parsed.map(String)
+    } else {
+      translatedParagraphs = [rawOutput]
+    }
+  } catch {
+    // JSON 파싱 실패: 원문 그대로 사용
+    translatedParagraphs = [rawOutput]
+  }
+
+  // 7. __NL__ 복원 → \n\n으로 재결합
+  const decoded = translatedParagraphs.map(p => p.replace(/__NL__/g, '\n'))
+  const rejoined = decoded.join('\n\n')
+
+  // 8. URL 복원
+  const restored = restoreUrls(rejoined, urls)
   const missing = urls.filter((_, i) => !block.text.includes(`__URL_${i}__`))
   return missing.length > 0 ? restored + '\n' + missing.join('\n') : restored
 }
@@ -138,7 +162,6 @@ export async function translatePost(
 ): Promise<{ title: string; content: string }> {
   const targetLang = originalLang === 'ko' ? 'ja' : 'ko'
 
-  // 타임아웃 위험을 줄이기 위해 제목·내용을 순차 번역
   const translatedTitle = await translateText(title, originalLang, targetLang)
   const translatedContent = await translateText(content, originalLang, targetLang)
 
