@@ -33,6 +33,11 @@ async function translateSingle(text: string, from: 'ko' | 'ja', to: 'ko' | 'ja')
   // 1. URL을 플레이스홀더로 치환 — 번역과 URL 처리를 완전히 분리
   const { clean, urls } = extractUrls(text)
 
+  // 2. 플레이스홀더를 제거했을 때 번역할 텍스트가 없으면 Claude 호출 건너뜀
+  //    (URL만 있는 단락 → 그대로 반환. Claude에 URL만 보내면 빈 문자열 반환으로 URL 증발)
+  const textOnly = clean.replace(/__URL_\d+__/g, '').trim()
+  if (!textOnly) return text
+
   const message = await client.messages.create({
     model: 'claude-opus-4-7',
     max_tokens: 4096,
@@ -48,8 +53,11 @@ If the text contains placeholders like __URL_0__, __URL_1__, etc., keep them exa
   const block = message.content[0]
   if (block.type !== 'text') throw new Error('Unexpected response type')
 
-  // 2. 번역 완료 후 플레이스홀더를 원본 URL로 복원
-  return restoreUrls(block.text, urls)
+  // 3. 번역 완료 후 플레이스홀더를 원본 URL로 복원
+  //    Claude가 플레이스홀더를 누락했을 경우 해당 URL을 말미에 추가 (안전망)
+  const restored = restoreUrls(block.text, urls)
+  const missing = urls.filter((_, i) => !block.text.includes(`__URL_${i}__`))
+  return missing.length > 0 ? restored + '\n' + missing.join('\n') : restored
 }
 
 /** 긴 텍스트를 문단 단위로 청크 분할 (기본 최대 1400자/청크) */
