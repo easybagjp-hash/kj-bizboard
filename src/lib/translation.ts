@@ -4,24 +4,52 @@ const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 })
 
+// ─── URL 보존 유틸 ───────────────────────────────────────────────────────────
+// 번역 전: URL → __URL_n__ 플레이스홀더로 치환 (Claude가 URL을 번역·변형하지 않도록)
+// 번역 후: __URL_n__ → 원본 URL 복원
+// URL 표시(링크 변환)는 AutoLink 컴포넌트에서 별도로 처리
+
+const URL_REGEX = /https?:\/\/[^\s]+/g
+
+function extractUrls(text: string): { clean: string; urls: string[] } {
+  const urls: string[] = []
+  const clean = text.replace(URL_REGEX, (url) => {
+    urls.push(url)
+    return `__URL_${urls.length - 1}__`
+  })
+  return { clean, urls }
+}
+
+function restoreUrls(text: string, urls: string[]): string {
+  if (urls.length === 0) return text
+  return text.replace(/__URL_(\d+)__/g, (_, i) => urls[Number(i)] ?? '')
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 /** 단일 텍스트 청크를 번역 (max_tokens: 4096) */
 async function translateSingle(text: string, from: 'ko' | 'ja', to: 'ko' | 'ja'): Promise<string> {
   const langMap = { ko: '한국어', ja: '日本語' }
+
+  // 1. URL을 플레이스홀더로 치환 — 번역과 URL 처리를 완전히 분리
+  const { clean, urls } = extractUrls(text)
 
   const message = await client.messages.create({
     model: 'claude-opus-4-7',
     max_tokens: 4096,
     system: `You are a professional Korean-Japanese business translator.
 Translate the given text from ${langMap[from]} to ${langMap[to]} accurately and naturally.
-Output only the translated text with no explanations or additional content.`,
+Output only the translated text with no explanations or additional content.
+If the text contains placeholders like __URL_0__, __URL_1__, etc., keep them exactly as-is without translating or modifying them.`,
     messages: [
-      { role: 'user', content: text },
+      { role: 'user', content: clean },
     ],
   })
 
   const block = message.content[0]
   if (block.type !== 'text') throw new Error('Unexpected response type')
-  return block.text
+
+  // 2. 번역 완료 후 플레이스홀더를 원본 URL로 복원
+  return restoreUrls(block.text, urls)
 }
 
 /** 긴 텍스트를 문단 단위로 청크 분할 (기본 최대 1400자/청크) */
@@ -65,7 +93,6 @@ export async function translateTags(tags: string[], sourceLang: 'ko' | 'ja'): Pr
   const targetLang = sourceLang === 'ko' ? 'ja' : 'ko'
   const langMap = { ko: '한국어', ja: '日本語' }
 
-  // 태그 목록을 한 번의 API 호출로 번역 (비용·속도 최적화)
   const input = tags.join('\n')
   const message = await client.messages.create({
     model: 'claude-opus-4-7',
@@ -83,7 +110,6 @@ Rules:
   if (block.type !== 'text') throw new Error('Unexpected response type')
 
   const translated = block.text.trim().split('\n').map(t => t.trim()).filter(Boolean)
-  // 번역 결과 수가 다르면 원본으로 fallback
   if (translated.length !== tags.length) return tags
   return translated
 }
