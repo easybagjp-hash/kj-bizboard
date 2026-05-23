@@ -66,17 +66,27 @@ export async function PATCH(req: NextRequest) {
   if (profileError) return NextResponse.json({ error: profileError.message }, { status: 500 })
 
   // bulk update 시 RLS 우회를 위해 admin 클라이언트 우선 사용 (없으면 user 클라이언트 fallback)
+  // SUPABASE_SERVICE_ROLE_KEY 미설정 시 comments 업데이트가 RLS에 막혀 0건이 될 수 있음
   const db = supabaseAdmin ?? supabase
+  if (!supabaseAdmin) {
+    console.warn('[Profile PATCH] supabaseAdmin 없음 — RLS로 인해 comments 업데이트가 막힐 수 있습니다. SUPABASE_SERVICE_ROLE_KEY 설정을 확인하세요.')
+  }
 
   // 2. 해당 유저의 모든 게시글 author_name 업데이트
-  const { error: postsError } = await db
-    .from('posts').update({ author_name: name }).eq('user_id', user.id)
+  const { data: updatedPosts, error: postsError } = await db
+    .from('posts').update({ author_name: name }).eq('user_id', user.id).select('id')
   if (postsError) return NextResponse.json({ error: postsError.message }, { status: 500 })
+  console.log(`[Profile PATCH] posts updated: ${updatedPosts?.length ?? 0}건`)
 
   // 3. 해당 유저의 모든 댓글/대댓글 author_name 업데이트
-  const { error: commentsError } = await db
-    .from('comments').update({ author_name: name }).eq('user_id', user.id)
+  const { data: updatedComments, error: commentsError } = await db
+    .from('comments').update({ author_name: name }).eq('user_id', user.id).select('id')
   if (commentsError) return NextResponse.json({ error: commentsError.message }, { status: 500 })
+  console.log(`[Profile PATCH] comments updated: ${updatedComments?.length ?? 0}건`)
 
-  return NextResponse.json({ display_name: name })
+  return NextResponse.json({
+    display_name: name,
+    posts_updated: updatedPosts?.length ?? 0,
+    comments_updated: updatedComments?.length ?? 0,
+  })
 }

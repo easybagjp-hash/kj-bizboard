@@ -79,6 +79,8 @@ export default function PostDetailPage() {
   const [editPostWarning, setEditPostWarning] = useState('')
   const editFormRef = useRef<HTMLFormElement>(null)
 
+  const [profileName, setProfileName] = useState('')  // profiles.display_name (이름 변경 반영)
+
   const [editingComment, setEditingComment] = useState<string | null>(null)
   const [editCommentForm, setEditCommentForm] = useState({ author_name: '', content: '' })
   const [editCommentWritingLang, setEditCommentWritingLang] = useState<'ko' | 'ja'>('ko')
@@ -115,10 +117,20 @@ export default function PostDetailPage() {
     setReplyWritingLang(detected)
 
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       setUser(data.user)
       if (data.user) {
-        const name = data.user.user_metadata?.full_name || data.user.email || ''
+        // Google 메타데이터를 기본값으로 설정 후,
+        // profiles.display_name이 있으면 덮어쓰기 (이름 변경 반영)
+        let name = data.user.user_metadata?.full_name || data.user.email || ''
+        try {
+          const profileRes = await fetch('/api/profile')
+          if (profileRes.ok) {
+            const profile = await profileRes.json()
+            if (profile.display_name) name = profile.display_name
+          }
+        } catch { /* 프로필 조회 실패 시 기본값 유지 */ }
+        setProfileName(name)
         setCommentForm((f) => ({ ...f, author_name: name }))
         setReplyForm((f) => ({ ...f, author_name: name }))
         setCommentNotifyEmail(data.user.email ?? '')
@@ -175,7 +187,7 @@ export default function PostDetailPage() {
     setEditPostNotifyComment(post.notify_comment ?? true)
     setEditPostNotifyEmail(post.notify_email || user?.email || '')
     setEditPostForm({
-      author_name: user ? (user.user_metadata?.full_name || user.email || '') : '',
+      author_name: user ? (profileName || user.user_metadata?.full_name || user.email || '') : '',
       title,
       content,
     })
@@ -235,7 +247,7 @@ export default function PostDetailPage() {
     setEditCommentNotify(node.notify_reply ?? true)
     setEditCommentNotifyEmail(node.notify_email || user?.email || '')
     setEditCommentForm({
-      author_name: user ? (user.user_metadata?.full_name || user.email || '') : '',
+      author_name: user ? (profileName || user.user_metadata?.full_name || user.email || '') : '',
       content,
     })
     setEditCommentError('')
