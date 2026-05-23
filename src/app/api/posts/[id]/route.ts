@@ -120,13 +120,14 @@ export async function DELETE(req: NextRequest, { params }: { params: Params }) {
   const { data: { user } } = await serverSupabase.auth.getUser()
 
   const isOwnerByUserId = user && post.user_id && post.user_id === user.id
-  const isOwnerByName = post.author_name === body.author_name
+  const isOwnerByName = !post.user_id && post.author_name === body.author_name
 
   if (!isOwnerByUserId && !isOwnerByName) {
     return NextResponse.json({ error: '작성자명이 일치하지 않습니다.' }, { status: 403 })
   }
 
-  const { error } = await supabase.from('posts').delete().eq('id', id)
+  // 소프트 삭제 (어드민 PATCH와 일관성 유지)
+  const { error } = await supabase.from('posts').update({ status: 'deleted' }).eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
 }

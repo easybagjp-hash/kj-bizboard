@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Post } from '@/lib/supabase'
@@ -438,7 +438,7 @@ export default function HomePage() {
                     </div>
                     <div className="text-right text-xs text-gray-400 shrink-0">
                       <p>{post.author_name}</p>
-                      <p className="mt-1">{new Date(post.created_at).toLocaleDateString('ko-KR')}</p>
+                      <p className="mt-1">{new Date(post.created_at).toLocaleDateString(lang === 'ko' ? 'ko-KR' : 'ja-JP')}</p>
                     </div>
                   </div>
 

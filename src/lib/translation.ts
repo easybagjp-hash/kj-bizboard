@@ -105,7 +105,7 @@ Rules:
 
   const rejoined = result.join('\n\n')
 
-  // 8. URL 복원
+  // 9. URL 복원
   const restored = restoreUrls(rejoined, urls)
 
   // Claude에게 실제로 보낸 텍스트에 포함된 URL만 누락 여부 체크

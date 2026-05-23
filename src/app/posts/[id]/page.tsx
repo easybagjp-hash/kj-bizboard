@@ -53,9 +53,15 @@ export default function PostDetailPage() {
   const [replyNotify, setReplyNotify] = useState(true)
   const [replyNotifyEmail, setReplyNotifyEmail] = useState('')
 
+  // 최초 마운트 시에만 UI 언어에 맞춰 댓글 작성 언어 초기화
+  // (이후 사용자가 직접 변경한 경우 UI 언어 전환에 따라 강제 변경하지 않음)
+  const writingLangInitialized = useRef(false)
   useEffect(() => {
-    setCommentWritingLang(lang)
-    setReplyWritingLang(lang)
+    if (!writingLangInitialized.current) {
+      setCommentWritingLang(lang)
+      setReplyWritingLang(lang)
+      writingLangInitialized.current = true
+    }
   }, [lang])
 
   // 삭제 모달 상태
@@ -411,7 +417,7 @@ export default function PostDetailPage() {
       }
       const newComment = await res.json()
       setComments((prev) => [...prev, newComment])
-      const keepName = user ? (user.user_metadata?.full_name || user.email || '') : ''
+      const keepName = user ? (profileName || user.user_metadata?.full_name || user.email || '') : ''
       setCommentForm({ author_name: keepName, content: '' })
     } catch (err) {
       setCommentError(err instanceof Error ? err.message : '오류가 발생했습니다.')
@@ -670,7 +676,7 @@ export default function PostDetailPage() {
               <div className="flex items-center gap-4 text-sm text-gray-500 mb-8 pb-6 border-b border-gray-100 flex-wrap">
                 <span>{post.author_name}</span>
                 <span>{new Date(post.created_at).toLocaleDateString(lang === 'ko' ? 'ko-KR' : 'ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
-                {post.updated_at && (
+                {post.updated_at && post.updated_at !== post.created_at && (
                   <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
                     {lang === 'ko' ? '수정됨' : '編集済み'}
                   </span>
