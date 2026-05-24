@@ -73,10 +73,16 @@ function NewPostContent() {
     setLang(detected)
 
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       if (data.user) {
         setUser(data.user)
-        const name = data.user.user_metadata?.full_name || data.user.email || ''
+        // profiles 테이블의 display_name 우선, 없으면 Google full_name 사용
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('display_name')
+          .eq('id', data.user.id)
+          .single()
+        const name = profile?.display_name || data.user.user_metadata?.full_name || data.user.email || ''
         setForm((f) => ({ ...f, author_name: name }))
         setNotifyEmail(data.user.email ?? '')
       }
